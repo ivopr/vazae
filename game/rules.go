@@ -500,7 +500,10 @@ func (r Rules) strength(manilhas []Card, c Card) int {
 	return base * 10
 }
 
-// cancelled marks the cards voided by an equal card in the same trick.
+// cancelled marks the cards voided by an equal card in the same trick. Only a
+// tie at the top cancels: the cards that would take the trick, if equal, void
+// each other, and then the next best are looked at the same way. A pair below
+// a card that beats it is left alone.
 func (r Rules) cancelled(manilhas []Card, trick []Played) []bool {
 	out := make([]bool, len(trick))
 	if !r.Tricks.CancelEqual {
@@ -510,19 +513,40 @@ func (r Rules) cancelled(manilhas []Card, trick []Played) []bool {
 		rank    Rank
 		manilha bool
 	}
-	count := map[key]int{}
 	keyOf := func(c Card) key { return key{c.Rank, manilhaIndex(manilhas, c) >= 0} }
-	for _, pl := range trick {
-		count[keyOf(pl.Card)]++
-	}
-	for i, pl := range trick {
-		k := keyOf(pl.Card)
-		if k.manilha && !r.Tricks.ManilhasCancel {
-			continue
+	score := func(c Card) int {
+		if r.Tricks.Winner == WinWeakest {
+			return -r.strength(manilhas, c)
 		}
-		out[i] = count[k] > 1
+		return r.strength(manilhas, c)
 	}
-	return out
+	for {
+		top := -1
+		for i, pl := range trick {
+			if !out[i] && (top < 0 || score(pl.Card) > score(trick[top].Card)) {
+				top = i
+			}
+		}
+		if top < 0 {
+			return out
+		}
+		k := keyOf(trick[top].Card)
+		if k.manilha && !r.Tricks.ManilhasCancel {
+			return out
+		}
+		var tied []int
+		for i, pl := range trick {
+			if !out[i] && keyOf(pl.Card) == k {
+				tied = append(tied, i)
+			}
+		}
+		if len(tied) < 2 {
+			return out
+		}
+		for _, i := range tied {
+			out[i] = true
+		}
+	}
 }
 
 // trickWinner is who takes these cards, or -1 when they all cancel and nobody

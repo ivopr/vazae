@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -374,6 +375,54 @@ func TestCancelVoidsTrick(t *testing.T) { // rule 36
 	}
 	if m := run(true); m.LastTrickWinner != -1 || m.Leader != 0 {
 		t.Fatalf("on: winner %d leader %d, want -1 and 0", m.LastTrickWinner, m.Leader)
+	}
+}
+
+func TestOnlyTopTieCancels(t *testing.T) { // rules 24 and 36
+	trick := func(cards ...Card) []Played {
+		out := make([]Played, len(cards))
+		for i, c := range cards {
+			out[i] = Played{Player: i, Card: c}
+		}
+		return out
+	}
+	manilhas := []Card{c(Five, Clubs), c(Five, Hearts), c(Five, Spades), c(Five, Diamonds)} // vira 4
+	cases := []struct {
+		name   string
+		voids  bool
+		weak   bool
+		cards  []Played
+		winner int
+		dead   []bool
+	}{
+		{"lower pair under a king, voids on", true, false,
+			trick(c(King, Hearts), c(Queen, Hearts), c(Queen, Spades), c(Six, Clubs)), 0, []bool{false, false, false, false}},
+		{"lower pair under a king, voids off", false, false,
+			trick(c(King, Hearts), c(Queen, Hearts), c(Queen, Spades), c(Six, Clubs)), 0, []bool{false, false, false, false}},
+		{"top pair, voids on", true, false,
+			trick(c(King, Hearts), c(King, Spades), c(Six, Clubs)), -1, []bool{true, true, false}},
+		{"cascade, voids off", false, false,
+			trick(c(King, Hearts), c(King, Spades), c(Queen, Hearts), c(Queen, Spades), c(Six, Clubs)), 4, []bool{true, true, true, true, false}},
+		{"manilha over a pair, voids on", true, false,
+			trick(c(Three, Hearts), c(Five, Clubs), c(Three, Spades)), 1, []bool{false, false, false}},
+		{"weakest wins: bottom pair cancels", true, true,
+			trick(c(Six, Hearts), c(Six, Spades), c(King, Clubs)), -1, []bool{true, true, false}},
+		{"weakest wins: top pair is left alone", true, true,
+			trick(c(King, Hearts), c(King, Spades), c(Six, Clubs)), 2, []bool{false, false, false}},
+	}
+	for _, tc := range cases {
+		r := DefaultRules()
+		r.Tricks.CancelVoidsTrick = tc.voids
+		r.Tricks.AllCancelled = CancelSameLeader
+		if tc.weak {
+			r.Tricks.Winner = WinWeakest
+		}
+		if got := r.trickWinner(manilhas, tc.cards); got != tc.winner {
+			t.Errorf("%s: winner %d, want %d", tc.name, got, tc.winner)
+		}
+		if got := r.cancelled(manilhas, tc.cards); fmt.Sprint(got) != fmt.Sprint(tc.dead) {
+			t.Errorf("%s: cancelled %v, want %v", tc.name, got, tc.dead)
+		}
 	}
 }
 

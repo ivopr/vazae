@@ -160,15 +160,15 @@ func TestHardTakesCheapestWhenLast(t *testing.T) {
 
 func TestHardCancelsToDodge(t *testing.T) {
 	// Bid already made. Our 3♦ is our most dangerous card: played later it
-	// would take a trick. Here it cancels the 3♣ on the table and still loses
-	// to the A♠, so it goes now. (The leader, player 3, hasn't played, so
-	// sabotage has nothing to say.)
+	// would take a trick. Here it loses to the manilha A♠ (the 3s tie below the
+	// manilha, so they don't cancel), so it goes now. (The leader, player 3,
+	// hasn't played, so sabotage has nothing to say.)
 	hand := []game.Card{card(game.Three, game.Diamonds), card(game.Two, game.Hearts)}
 	trick := []game.Played{{Player: 1, Card: card(game.Three, game.Clubs)}, {Player: 2, Card: card(game.Ace, game.Spades)}}
 	v := fixedView(hand, trick, 0, 0, []int{5, 5, 5, 9})
 	got := NewHard().Play(v)
 	if got != card(game.Three, game.Diamonds) {
-		t.Fatalf("played %v, want 3♦ (cancels the 3♣, sheds our strongest card without taking the trick)", got)
+		t.Fatalf("played %v, want 3♦ (sheds our strongest card without taking the trick)", got)
 	}
 }
 

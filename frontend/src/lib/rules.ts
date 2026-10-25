@@ -382,6 +382,7 @@ export const RULES: RuleMeta[] = [
     n: 24,
     group: "tricks",
     title: "Cartas iguais",
+    hint: "Só se anulam as que empatam no topo da vaza, as que levariam. Um par abaixo de uma carta que ganha dele vale normalmente.",
     fields: [{ key: "tricks.cancelEqual", control: yesNo("Se anulam", "Valem normalmente; a primeira jogada ganha o empate") }],
   },
   {
@@ -423,7 +424,7 @@ export const RULES: RuleMeta[] = [
     n: 36,
     group: "tricks",
     title: "Anulação deixa a vaza sem dono",
-    hint: "Com a anulação ativa, define o que acontece com as outras cartas. Se a vaza fica sem dono, vale a regra 26.",
+    hint: "Quando as cartas de cima da vaza se anulam, define se as outras ainda disputam. Se a vaza fica sem dono, vale a regra 26.",
     fields: [
       {
         key: "tricks.cancelVoidsTrick",
@@ -643,10 +644,10 @@ export function describe(r: Rules): { title: string; text: string }[] {
     r.tricks.follow === Follow.FollowSuit ? "É preciso seguir o naipe de quem abriu, se tiver." : "Vale jogar qualquer carta.",
     r.tricks.winner === TrickWinner.WinWeakest ? "A carta mais fraca leva." : "A carta mais forte leva.",
     r.tricks.cancelEqual
-      ? `Cartas iguais se anulam${r.tricks.manilhasCancel ? ", manilhas também." : " (manilhas não)."} ${
+      ? `Cartas iguais que empatam no topo da vaza se anulam${r.tricks.manilhasCancel ? ", manilhas também." : " (manilhas não)."} Um par abaixo de uma carta que ganha dele vale normalmente. ${
           r.tricks.cancelVoidsTrick
             ? `Havendo anulação, ninguém leva a vaza. ${allDead[r.tricks.allCancelled].replace("Se todas se anularem", "Nesse caso")}`
-            : allDead[r.tricks.allCancelled]
+            : `Aí leva a próxima carta ${r.tricks.winner === TrickWinner.WinWeakest ? "mais fraca" : "mais forte"}. ${allDead[r.tricks.allCancelled]}`
         }`
       : "Cartas iguais não se anulam: entre elas, ganha a primeira jogada.",
     r.tricks.nextLeader === NextLeader.NextRotate ? "A vaza seguinte é aberta pelo próximo da mesa." : "Quem levou abre a seguinte.",
