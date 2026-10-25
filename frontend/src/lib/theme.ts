@@ -14,11 +14,8 @@ function stored(): Theme | null {
   }
 }
 
-function system(): Theme {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-}
-
-let current: Theme = stored() ?? system()
+// The salon opens at night; the daylit matinê is a choice in the menu.
+let current: Theme = stored() ?? "dark"
 
 function apply(t: Theme) {
   document.documentElement.classList.toggle("dark", t === "dark")

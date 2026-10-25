@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 
 import { Rank, Suit, type RuleError, type Rules } from "../../bindings/vazae/game/models"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { RANK_LABEL, SUIT_GLYPH, SUIT_NAME, rankName } from "@/lib/cards"
 import { GROUPS, RULES, changedRules, getField, setField, type Control, type Field, type GroupId, type RuleMeta } from "@/lib/rules"
 import { loadSaved, newSetId, storeSaved, type RuleSet } from "@/lib/ruleSets"
 import { cn } from "@/lib/utils"
+import { WithSuits } from "@/components/SuitIcon"
 
 type Props = {
   defaults: Rules
@@ -99,14 +101,15 @@ export function RulesEditor({ defaults, presets, initial, initialSetId, check, o
   const shown = RULES.filter((m) => m.group === group)
 
   return (
-    <main className="on-felt mx-auto flex min-h-full max-w-6xl flex-col gap-3 px-4 py-[max(1rem,env(safe-area-inset-top))] stage-lg:h-full">
+    <main className="on-room mx-auto flex min-h-full max-w-6xl flex-col gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] stage-lg:h-full">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Button variant="ghost" onClick={onCancel} className="-ml-3 hover:bg-felt-deep">
+        <Button variant="ghost" onClick={onCancel} className="-ml-3 hover:bg-room-deep">
           Voltar
         </Button>
-        <h1 className="font-slab text-2xl font-bold">Regras da partida</h1>
-        {/* One row with the title on desktop, so the rules get the height. */}
-        <div className="flex flex-wrap items-center gap-2 stage-sm:ml-auto">
+        <h1 className="font-display text-4xl leading-none text-marquee">Regras da partida</h1>
+        {/* One row with the title on desktop, so the rules get the height. The set's
+            actions sit in one menu, so a phone keeps them on a single line. */}
+        <div className="flex w-full flex-wrap items-end gap-2 stage-sm:ml-auto stage-sm:w-auto">
           <SetPicker
             presets={presets}
             saved={saved}
@@ -115,47 +118,48 @@ export function RulesEditor({ defaults, presets, initial, initialSetId, check, o
             baseName={base?.name}
             onPick={pick}
           />
-          {naming ? (
-            <NameForm
-              initial={naming === "rename" ? (base?.name ?? "") : ""}
-              taken={saved.filter((s) => s.id !== setId || naming === "new").map((s) => s.name)}
-              submitLabel={naming === "rename" ? "Renomear" : "Salvar"}
-              onSubmit={naming === "rename" ? rename : saveAs}
-              onCancel={() => setNaming(null)}
-            />
-          ) : deleting ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span>Excluir "{base?.name}" deste aparelho?</span>
-              <Button variant="outline" onClick={remove}>
-                Excluir
-              </Button>
-              <Button variant="ghost" className="hover:bg-felt-deep" onClick={() => setDeleting(false)}>
-                Manter
-              </Button>
-            </div>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => setNaming("new")}>
-                Salvar como…
-              </Button>
-              {base && !base.builtIn && dirty && (
-                <Button variant="outline" onClick={overwrite}>
-                  Salvar em "{base.name}"
-                </Button>
-              )}
-              {base && !base.builtIn && (
-                <>
-                  <Button variant="outline" onClick={() => setNaming("rename")}>
-                    Renomear
-                  </Button>
-                  <Button variant="outline" onClick={() => setDeleting(true)}>
-                    Excluir
-                  </Button>
-                </>
-              )}
-            </>
+          {!naming && !deleting && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">Opções</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setNaming("new")}>Salvar como…</DropdownMenuItem>
+                {base && !base.builtIn && dirty && (
+                  <DropdownMenuItem onSelect={overwrite}>Salvar em "{base.name}"</DropdownMenuItem>
+                )}
+                {base && !base.builtIn && (
+                  <>
+                    <DropdownMenuItem onSelect={() => setNaming("rename")}>Renomear</DropdownMenuItem>
+                    <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
+                      Excluir
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
+        {naming && (
+          <NameForm
+            initial={naming === "rename" ? (base?.name ?? "") : ""}
+            taken={saved.filter((s) => s.id !== setId || naming === "new").map((s) => s.name)}
+            submitLabel={naming === "rename" ? "Renomear" : "Salvar"}
+            onSubmit={naming === "rename" ? rename : saveAs}
+            onCancel={() => setNaming(null)}
+          />
+        )}
+        {deleting && (
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <span>Excluir "{base?.name}" deste aparelho?</span>
+            <Button variant="outline" onClick={remove}>
+              Excluir
+            </Button>
+            <Button variant="ghost" className="hover:bg-room-deep" onClick={() => setDeleting(false)}>
+              Manter
+            </Button>
+          </div>
+        )}
       </header>
 
       <Tabs group={group} onGroup={setGroup} changed={changed} hasError={groupHasError} />
@@ -164,17 +168,18 @@ export function RulesEditor({ defaults, presets, initial, initialSetId, check, o
         id={`grupo-${group}`}
         role="tabpanel"
         aria-labelledby={`aba-${group}`}
-        className="panel min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card p-3 text-card-foreground"
+        className="panel deco-frame min-h-0 flex-1 overflow-y-auto rounded-lg bg-card px-4 py-1 text-card-foreground"
       >
-        <div className="gap-3 stage-md:columns-2 stage-lg:columns-3">
+        {/* One panel, ruled between rules like the round summary; no boxes inside the box. */}
+        <div className="gap-8 stage-md:columns-2 stage-lg:columns-3">
           {shown.map((m) => (
             <RuleCard key={m.n} meta={m} rules={rules} defaults={defaults} changed={changed.has(m.n)} errors={errorsFor(m)} onChange={setRules} />
           ))}
         </div>
       </section>
 
-      <footer className="flex flex-wrap items-center justify-end gap-2 pb-[env(safe-area-inset-bottom)]">
-        <p className="mr-auto text-sm text-felt-muted">
+      <footer className="flex flex-wrap items-center justify-end gap-2 pb-[max(1rem,env(safe-area-inset-bottom))] stage-lg:pb-6">
+        <p className="mr-auto text-sm text-room-muted">
           {errors.length > 0
             ? `${errors.length === 1 ? "Uma regra precisa" : `${errors.length} regras precisam`} de ajuste antes de jogar.`
             : changed.size === 0
@@ -209,10 +214,10 @@ function SetPicker({
   onPick: (id: string) => void
 }) {
   return (
-    <label className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-felt-muted">Conjunto</span>
+    <label className="flex min-w-0 flex-1 flex-col gap-1 stage-sm:flex-none">
+      <span className="text-sm text-room-muted">Conjunto</span>
       <select
-        className="h-11 rounded-md border border-input bg-felt-deep px-3 text-base"
+        className="h-11 w-full min-w-0 rounded-md border-2 border-input bg-room-deep px-3 text-base stage-sm:w-auto"
         value={dirty ? "" : (setId ?? "")}
         onChange={(e) => e.target.value && onPick(e.target.value)}
       >
@@ -256,7 +261,7 @@ function NameForm({
   const clash = taken.some((t) => t.toLowerCase() === clean.toLowerCase())
   return (
     <form
-      className="flex flex-wrap items-center gap-2"
+      className="flex w-full flex-wrap items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault()
         if (clean && !clash) onSubmit(clean)
@@ -271,12 +276,12 @@ function NameForm({
         onChange={(e) => setName(e.target.value)}
         aria-invalid={clash || undefined}
         aria-describedby={clash ? "nome-repetido" : undefined}
-        className="w-64"
+        className="w-full max-w-64 flex-1"
       />
       <Button type="submit" variant="outline" disabled={!clean || clash}>
         {submitLabel}
       </Button>
-      <Button type="button" variant="ghost" className="hover:bg-felt-deep" onClick={onCancel}>
+      <Button type="button" variant="ghost" className="hover:bg-room-deep" onClick={onCancel}>
         Cancelar
       </Button>
       {clash && (
@@ -309,7 +314,12 @@ function Tabs({
     refs.current[j]?.focus()
   }
   return (
-    <div role="tablist" aria-label="Grupos de regras" className="-mx-4 flex gap-1 overflow-x-auto px-4 stage-lg:mx-0 stage-lg:px-0">
+    // On a phone the groups scroll sideways; the faded right edge says there is more.
+    <div
+      role="tablist"
+      aria-label="Grupos de regras"
+      className="-mx-4 flex gap-1 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)] stage-lg:mx-0 stage-lg:px-0 stage-lg:[mask-image:none]"
+    >
       {GROUPS.map((g, i) => {
         const count = RULES.filter((m) => m.group === g.id && changed.has(m.n)).length
         const err = hasError(g.id)
@@ -330,12 +340,12 @@ function Tabs({
             onKeyDown={(e) => onKey(e, i)}
             className={cn(
               "flex min-h-11 shrink-0 flex-col items-start justify-center rounded-md border-2 px-3 py-1 text-left",
-              active ? "border-felt-foreground bg-felt-deep font-bold" : "border-transparent hover:bg-felt-deep/60",
+              active ? "border-room-foreground bg-room-deep font-bold" : "border-transparent hover:bg-room-deep",
             )}
           >
             <span className="whitespace-nowrap">{g.title}</span>
             {(err || count > 0) && (
-              <span className={cn("text-xs font-normal whitespace-nowrap", err ? "text-destructive" : "text-felt-muted")}>
+              <span className={cn("text-xs font-normal whitespace-nowrap", err ? "font-bold text-destructive" : "text-room-muted")}>
                 {err ? "precisa de ajuste" : count === 1 ? "1 alterada" : `${count} alteradas`}
               </span>
             )}
@@ -366,17 +376,22 @@ function RuleCard({
   return (
     <article
       aria-labelledby={titleId}
-      className={cn("mb-3 flex break-inside-avoid flex-col gap-1.5 rounded-md border px-3 py-2.5", errors.length ? "border-destructive" : "border-border")}
+      className="flex break-inside-avoid flex-col gap-1.5 border-b border-dashed border-border py-4"
     >
       <div className="flex items-baseline gap-2">
-        <span className="font-slab text-sm font-bold text-muted-foreground">{meta.n}</span>
+        {/* The rule's number, as the rules dialog and the players name it. */}
+        <span className="text-lg leading-none font-bold text-muted-foreground">{meta.n}</span>
         <h2 id={titleId} className="font-bold">
           {meta.title}
         </h2>
-        {changed && (
-          <span className="ml-auto text-xs text-muted-foreground" title="Diferente do padrão">
-            alterada
-          </span>
+        {errors.length > 0 ? (
+          <span className="ml-auto text-xs font-bold text-destructive">precisa de ajuste</span>
+        ) : (
+          changed && (
+            <span className="ml-auto text-xs text-muted-foreground" title="Diferente do padrão">
+              alterada
+            </span>
+          )
         )}
       </div>
       {meta.locked ? (
@@ -456,7 +471,7 @@ function FieldControl({
               value={String(o.value)}
               className="h-auto min-h-11 justify-start px-3 py-2 text-left whitespace-normal"
             >
-              {o.label}
+              <WithSuits text={o.label} />
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
@@ -476,7 +491,7 @@ function FieldControl({
           {...aria}
         >
           {(defaults.deck.order ?? []).map((k) => (
-            <ToggleGroupItem key={k} value={String(k)} aria-label={rankName(k)} className="font-slab text-lg">
+            <ToggleGroupItem key={k} value={String(k)} aria-label={rankName(k)} className="font-sans text-lg font-bold">
               {RANK_LABEL[k]}
             </ToggleGroupItem>
           ))}
@@ -586,7 +601,7 @@ function NumberControl({
             onChange={(e) => setText(e.target.value)}
             onBlur={commit}
             onKeyDown={(e) => e.key === "Enter" && commit()}
-            className="w-20 text-center font-slab text-lg"
+            className="w-20 text-center font-sans text-lg font-bold"
             {...aria}
           />
           <Button
@@ -668,7 +683,7 @@ function OrderControl<T extends number>({
             key={t}
             value={String(t)}
             aria-label={`${spoken(t)}, ${k + 1}${o}`}
-            className={cn("font-slab text-lg", red?.(t) && "text-destructive data-[state=on]:text-card")}
+            className={cn("font-sans text-lg font-bold", red?.(t) && "text-destructive data-[state=on]:text-card")}
           >
             {label(t)}
           </ToggleGroupItem>

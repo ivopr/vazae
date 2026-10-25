@@ -1,10 +1,11 @@
-import { useRef, useState, type KeyboardEvent } from "react"
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react"
 
 import type { Card } from "../../bindings/vazae/game/models"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { cardLabel, cardName, sameCard } from "@/lib/cards"
 import { PlayingCard } from "./PlayingCard"
+import { WithSuits } from "./SuitIcon"
 
 type Props = {
   /** Weakest first, as the engine sorts it under this match's rules. */
@@ -15,24 +16,38 @@ type Props = {
   canPlay: boolean
   busy: boolean
   onPlay: (c: Card) => void
+  /** A crowded table or a big hand holds mid-size cards to leave room for the felt. */
+  size?: "md" | "lg"
+  /** Shown between the fan and its play button (your status and plaque, on a phone). */
+  middle?: ReactNode
+  /** Keep the play button's room even when it isn't your turn, so the dock doesn't jump between turns. */
+  reserve?: boolean
 }
 
-/** Tap a card to lift it, then confirm. Arrow keys move between playable cards. */
-export function Hand({ hand, manilhas, playable, canPlay, busy, onPlay }: Props) {
+const CARD_W = { md: 64, lg: 76 }
+
+/** How wide a fan of n cards is at most (cards a little apart; a narrow dock overlaps them). */
+export const fanWidth = (n: number, size: "md" | "lg") => (n > 0 ? CARD_W[size] + (n - 1) * (CARD_W[size] + 6) : 0)
+export const CARD_H = { md: 96, lg: 112 }
+
+/**
+ * Your cards fanned over the near rail, weakest on the left. Tap a card to lift it,
+ * then tap it again or confirm. Arrow keys move between playable cards.
+ */
+export function Hand({ hand, manilhas, playable, canPlay, busy, onPlay, size = "lg", middle, reserve }: Props) {
   const [picked, setPicked] = useState<Card | null>(null)
   const refs = useRef<(HTMLButtonElement | null)[]>([])
-  const sorted = hand
   const allowed = (c: Card) => canPlay && !!playable?.some((p) => sameCard(p, c))
-  const selected = picked && sorted.some((c) => sameCard(c, picked) && allowed(c)) ? picked : null
-  const restricted = canPlay && sorted.some((c) => !allowed(c))
+  const selected = picked && hand.some((c) => sameCard(c, picked) && allowed(c)) ? picked : null
+  const restricted = canPlay && hand.some((c) => !allowed(c))
 
   const onKey = (e: KeyboardEvent, i: number) => {
     const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0
     if (!step) return
     e.preventDefault()
-    for (let k = 1; k <= sorted.length; k++) {
-      const j = (i + k * step + k * sorted.length) % sorted.length
-      if (allowed(sorted[j])) return refs.current[j]?.focus()
+    for (let k = 1; k <= hand.length; k++) {
+      const j = (i + k * step + k * hand.length) % hand.length
+      if (allowed(hand[j])) return refs.current[j]?.focus()
     }
   }
 
@@ -42,20 +57,30 @@ export function Hand({ hand, manilhas, playable, canPlay, busy, onPlay }: Props)
     else setPicked(c)
   }
 
-  // How much of each card shows: overlap more as the hand grows. Every card but the
-  // last can shrink further, down to a sliver, so even a 19-card hand fits the width.
-  // At 360px a 76px card leaves ~28px (8+ cards) or ~44px (5-7 cards) showing.
-  const step =
-    sorted.length > 7 ? "basis-7 stage-sm:basis-14" : sorted.length > 4 ? "basis-11 stage-sm:basis-18" : "basis-20 stage-sm:basis-22"
+  const n = hand.length
+  if (n === 0) return null
+  const w = CARD_W[size]
+  const mid = (n - 1) / 2
+  // Cards spread a little apart when they fit, and overlap evenly when they don't.
+  const step = n > 1 ? `min(${w + 6}px, (100% - ${w}px) / ${n - 1})` : "0px"
+  const spread = Math.min(4, 28 / Math.max(n, 1))
 
   return (
-    <div className="flex max-w-full flex-col items-center gap-3">
-      <ul className="flex max-w-full items-end justify-center px-2 pt-4" aria-label="Sua mão">
-        {sorted.map((c, i) => {
+    <div className="flex w-full flex-col items-center gap-2">
+      <ul role="group" aria-label="Sua mão" className="relative w-full" style={{ height: CARD_H[size] + 20 }}>
+        {hand.map((c, i) => {
           const isSel = selected !== null && sameCard(selected, c)
           const ok = allowed(c)
+          const off = i - mid
+          const style = {
+            left: `calc(50% + ${off} * ${step} - ${w / 2}px)`,
+            "--fan-r": `${off * spread}deg`,
+            "--fan-y": `${Math.abs(off) ** 2 * 0.9 + 12}px`,
+            animationDelay: `${i * 50}ms`,
+            animationFillMode: "backwards",
+          } as CSSProperties
           return (
-            <li key={`${c.rank}-${c.suit}`} className={i < sorted.length - 1 ? cn("min-w-4 shrink", step) : "shrink-0"}>
+            <li key={`${c.rank}-${c.suit}`} className="absolute top-0" style={style}>
               <button
                 ref={(el) => {
                   refs.current[i] = el
@@ -67,30 +92,38 @@ export function Hand({ hand, manilhas, playable, canPlay, busy, onPlay }: Props)
                 onClick={() => press(c)}
                 onKeyDown={(e) => onKey(e, i)}
                 className={cn(
-                  "block rounded-md transition-transform duration-150 disabled:cursor-default",
-                  ok && "hover:-translate-y-2",
-                  isSel && "-translate-y-4 hover:-translate-y-4",
-                  "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-8 motion-safe:duration-300",
+                  "block origin-bottom rounded-md transition-transform duration-200 ease-out disabled:cursor-default",
+                  "[transform:translateY(var(--fan-y))_rotate(var(--fan-r))]",
+                  ok && !isSel && "can-hover:hover:[transform:translateY(calc(var(--fan-y)-8px))_rotate(var(--fan-r))]",
+                  isSel && "[transform:translateY(calc(var(--fan-y)-20px))_rotate(var(--fan-r))]",
+                  "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-10 motion-safe:duration-300",
                 )}
-                style={{ animationDelay: `${i * 50}ms`, animationFillMode: "backwards" }}
               >
                 <PlayingCard
                   card={c}
                   manilhas={manilhas}
-                  size="lg"
-                  className={cn(isSel && "ring-3 ring-turn", canPlay && !ok && "brightness-75 saturate-50")}
+                  size={size}
+                  className={cn(isSel && "ring-3 ring-brass", canPlay && !ok && "brightness-[.6] saturate-50")}
                 />
               </button>
             </li>
           )
         })}
       </ul>
-      {restricted && <p className="-mt-1 text-sm text-felt-muted">Siga o naipe de quem abriu a vaza.</p>}
+      {middle}
+      {restricted && <p className="text-sm text-rail-muted">Siga o naipe de quem abriu a vaza.</p>}
       {canPlay && (
-        <Button disabled={!selected || busy} onClick={() => selected && onPlay(selected)}>
-          {selected ? `Jogar ${cardLabel(selected)}` : "Escolha uma carta"}
+        <Button size="lg" className="w-full max-w-xs" disabled={!selected || busy} onClick={() => selected && onPlay(selected)}>
+          {selected ? (
+            <span>
+              Jogar <WithSuits text={cardLabel(selected)} />
+            </span>
+          ) : (
+            "Escolha uma carta"
+          )}
         </Button>
       )}
+      {!canPlay && reserve && <div className="h-13 w-full max-w-xs" aria-hidden />}
     </div>
   )
 }
@@ -98,13 +131,11 @@ export function Hand({ hand, manilhas, playable, canPlay, busy, onPlay }: Props)
 /** One-card round: the card is yours but hidden from you. */
 export function HiddenHand({ canPlay, busy, onPlay }: { canPlay: boolean; busy: boolean; onPlay: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-3">
-      <PlayingCard unknown size="lg" />
-      <p className="max-w-xs text-center text-sm text-felt-muted">
-        Rodada de 1 carta: você vê a carta dos outros, mas não a sua.
-      </p>
+    <div className="flex flex-col items-center gap-2">
+      <PlayingCard unknown size="md" />
+      <p className="max-w-xs text-center text-sm text-rail-muted">Rodada de 1 carta: você vê a carta dos outros, mas não a sua.</p>
       {canPlay && (
-        <Button disabled={busy} onClick={onPlay}>
+        <Button size="lg" className="w-full max-w-xs" disabled={busy} onClick={onPlay}>
           Jogar minha carta
         </Button>
       )}

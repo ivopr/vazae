@@ -15,3 +15,4 @@ node_modules/
 build/android/.gradle/
 build/android/app/build/
 build/android/app/src/main/jniLibs/**/libwails.so
+.impeccable

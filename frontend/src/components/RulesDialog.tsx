@@ -4,6 +4,7 @@ import type { Rules } from "../../bindings/vazae/game/models"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { describe } from "@/lib/rules"
 import { useBuiltIns } from "@/lib/ruleSets"
+import { WithSuits } from "./SuitIcon"
 
 /**
  * The rules in words, written from the same Rules the engine enforces. Without
@@ -17,7 +18,7 @@ export function RulesDialog({ trigger, rules }: { trigger: ReactNode; rules?: Ru
         <DialogHeader>
           <DialogTitle>Como se joga</DialogTitle>
           <DialogDescription>
-            {rules ? "As regras desta partida." : "Fodinha com o baralho e a força das cartas do truco."}
+            {rules ? "As regras desta partida." : "Jogo de vazas com o baralho e a força das cartas do truco."}
           </DialogDescription>
         </DialogHeader>
         {rules ? <RuleText rules={rules} /> : <DefaultRuleText />}
@@ -39,8 +40,10 @@ function RuleText({ rules }: { rules: Rules }) {
     <div className="flex flex-col gap-4 text-[15px] leading-relaxed stage-lg:grid stage-lg:grid-cols-2 stage-lg:gap-x-8">
       {describe(rules).map((s) => (
         <section key={s.title}>
-          <h3 className="font-slab text-lg font-bold">{s.title}</h3>
-          <p className="text-card-foreground">{s.text}</p>
+          <h3 className="font-display text-xl">{s.title}</h3>
+          <p className="text-card-foreground">
+            <WithSuits text={s.text} />
+          </p>
         </section>
       ))}
     </div>

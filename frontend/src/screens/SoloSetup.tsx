@@ -10,6 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Difficulty, LEVEL_LABEL, type StartConfig, type StartStatus } from "@/game/useSolo"
 import { changedRules, withDefaults } from "@/lib/rules"
 import { loadSaved, useBuiltIns, type BuiltIns } from "@/lib/ruleSets"
+import { cn } from "@/lib/utils"
 import { RulesEditor } from "./RulesEditor"
 
 const KEY = "vazae:solo-setup"
@@ -152,21 +153,22 @@ function Setup({
   }
 
   return (
-    <main className="on-felt mx-auto flex min-h-full max-w-lg flex-col justify-center gap-4 px-4 py-[max(1.5rem,env(safe-area-inset-top))] stage-lg:max-w-3xl">
+    <main className="on-room mx-auto flex min-h-full max-w-lg flex-col justify-center gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] stage-lg:max-w-3xl">
       <div>
-        <Button variant="ghost" onClick={onBack} className="-ml-3 hover:bg-felt-deep">
+        <Button variant="ghost" onClick={onBack} className="-ml-3 hover:bg-room-deep">
           Voltar
         </Button>
       </div>
 
+      {/* The setup is a house card in the deco frame. */}
       <form
-        className="panel flex flex-col gap-6 rounded-lg border border-border bg-card p-5 text-card-foreground stage-sm:p-6"
+        className="panel deco-frame flex flex-col gap-6 rounded-lg bg-card p-5 text-card-foreground stage-sm:p-6"
         onSubmit={(e) => {
           e.preventDefault()
           submit()
         }}
       >
-        <h1 className="font-slab text-3xl font-bold">Mesa contra robôs</h1>
+        <h1 className="font-display text-4xl leading-none text-marquee">Mesa contra robôs</h1>
 
         {/* Two columns on desktop so the whole form fits the window without scrolling. */}
         <div className="flex flex-col gap-6 stage-lg:flex-row stage-lg:items-start stage-lg:gap-x-8">
@@ -195,7 +197,8 @@ function Setup({
               variant="outline"
               value={String(cfg.bots)}
               onValueChange={(v) => v && setCfg({ ...cfg, bots: Number(v) })}
-              className="flex flex-wrap gap-2"
+              // Phones: two full rows (4 and 3) instead of a seventh chip wrapping alone.
+              className="grid w-full grid-cols-12 gap-2 stage-sm:flex stage-sm:w-fit"
               aria-label="Robôs na mesa"
             >
               {[1, 2, 3, 4, 5, 6, 7].map((n) => (
@@ -203,7 +206,7 @@ function Setup({
                   key={n}
                   value={String(n)}
                   disabled={range !== null && (n < range[0] || n > range[1])}
-                  className="font-slab text-lg"
+                  className={cn("text-xl font-bold", n <= 4 ? "col-span-3" : "col-span-4")}
                 >
                   {n}
                 </ToggleGroupItem>
@@ -242,11 +245,12 @@ function Setup({
               variant="outline"
               value={cfg.difficulty}
               onValueChange={(v) => v && setCfg({ ...cfg, difficulty: v as Difficulty })}
-              className="flex flex-wrap gap-2"
+              // Phones: three then two, each row filled, so "Misturado" never wraps alone.
+              className="grid w-full grid-cols-6 gap-2 stage-sm:flex stage-sm:w-fit stage-sm:flex-wrap"
               aria-label="Dificuldade"
             >
-              {LEVELS.map((d) => (
-                <ToggleGroupItem key={d} value={d}>
+              {LEVELS.map((d, i) => (
+                <ToggleGroupItem key={d} value={d} className={i < 3 ? "col-span-2" : "col-span-3"}>
                   {LEVEL_LABEL[d]}
                 </ToggleGroupItem>
               ))}

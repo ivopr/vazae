@@ -3,7 +3,8 @@ import { useEffect, useRef } from "react"
 import type { PlayerView } from "../../bindings/vazae/game/models"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Chips } from "@/components/Chip"
+import { cn } from "@/lib/utils"
 
 type Props = {
   view: PlayerView
@@ -13,6 +14,7 @@ type Props = {
   onNext: () => void
 }
 
+/** The croupier's tally for the round: one ruled line per player, laid out the same every round. */
 export function RoundSummary({ view, open, busy, onClose, onNext }: Props) {
   const next = useRef<HTMLButtonElement>(null)
   // The dialog can open while the last play is still in flight (button disabled),
@@ -24,6 +26,7 @@ export function RoundSummary({ view, open, busy, onClose, onNext }: Props) {
   const losses = view.lastLoss ?? []
   const mine = losses.find((l) => l.player === view.me)
   const meOut = (players[view.me]?.lives ?? 0) <= 0
+  const total = view.rules.players.lives
 
   let headline = "Rodada encerrada"
   if (mine) {
@@ -50,41 +53,49 @@ export function RoundSummary({ view, open, busy, onClose, onNext }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Jogador</TableHead>
-              <TableHead className="text-right">Palpite</TableHead>
-              <TableHead className="text-right">Fez</TableHead>
-              <TableHead className="text-right">Perdeu</TableHead>
-              <TableHead className="text-right">Vidas</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {losses.map((l) => {
-              const p = players[l.player]
-              return (
-                <TableRow key={l.player} className={l.player === view.me ? "font-bold" : undefined}>
-                  <TableCell className="max-w-28 truncate">{p?.name}</TableCell>
-                  <TableCell className="text-right font-slab">{l.bid}</TableCell>
-                  <TableCell className="text-right font-slab">{l.won}</TableCell>
-                  <TableCell className="text-right font-slab">{l.lost === 0 ? "0" : `-${l.lost}`}</TableCell>
-                  <TableCell className="text-right font-slab">{p && p.lives > 0 ? p.lives : "fora"}</TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+        <ol className="flex flex-col border-t border-dashed border-border" aria-label="Placar da rodada">
+          {losses.map((l) => {
+            const p = players[l.player]
+            const lives = p?.lives ?? 0
+            return (
+              <li
+                key={l.player}
+                className={cn("flex flex-col gap-1 border-b border-dashed border-border py-2.5", l.player === view.me && "font-bold")}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="min-w-0 flex-1 truncate">{p?.name}</span>
+                  {/* The chips lost this round slide off as the tally lands. */}
+                  <Chips lives={lives} total={total} from={lives + l.lost} />
+                </div>
+                <dl className="flex gap-4 text-sm font-normal text-muted-foreground">
+                  <Stat label="Palpite" value={l.bid} />
+                  <Stat label="Fez" value={l.won} />
+                  <Stat label="Perdeu" value={l.lost} strong={l.lost > 0} />
+                  <Stat label="Vidas" value={lives > 0 ? lives : "fora"} />
+                </dl>
+              </li>
+            )
+          })}
+        </ol>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Ver a mesa
           </Button>
-          <Button ref={next} onClick={onNext} disabled={busy}>
+          <Button ref={next} size="lg" onClick={onNext} disabled={busy}>
             Próxima rodada
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function Stat({ label, value, strong }: { label: string; value: number | string; strong?: boolean }) {
+  return (
+    <div className="flex items-baseline gap-1">
+      <dt>{label}</dt>
+      <dd className={cn("text-lg leading-none text-card-foreground", strong && "font-bold")}>{value}</dd>
+    </div>
   )
 }

@@ -8,10 +8,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Ink border: mustard alone is 1.9:1 against the light paper panel.
-        default: "border-ink bg-primary font-bold text-primary-foreground hover:bg-[color-mix(in_oklch,var(--primary),var(--ink)_12%)]",
+        // Lit brass with a struck edge: light along the top, a darker lip at the bottom.
+        // Disabled, it loses the brass entirely: a flat muted slab, so dulled brass never reads as another colour.
+        default:
+          "border-[color-mix(in_oklch,var(--primary),var(--ink)_35%)] bg-primary font-bold text-primary-foreground shadow-[inset_0_1px_0_rgba(255,255,255,.45),inset_0_-2px_0_rgba(0,0,0,.2)] hover:bg-[color-mix(in_oklch,var(--primary),white_14%)] disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none",
         outline:
-          "border-border bg-transparent hover:bg-muted aria-expanded:bg-muted",
+          "border-2 border-border bg-transparent font-bold hover:bg-muted aria-expanded:bg-muted",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
