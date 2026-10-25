@@ -11,11 +11,14 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.wails.app"
+        // The installed app's ID. The namespace above stays com.wails.app:
+        // Wails' native bridge is bound to that Java package.
+        applicationId "com.vazae.app"
         minSdk 21
         targetSdk 35
-        versionCode 1
-        versionName "1.0"
+        // CI sets these from the release tag and run number.
+        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
+        versionName System.getenv("VERSION_NAME") ?: "0.1.0"
 
         // Configure supported ABIs
         ndk {

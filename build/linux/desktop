@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=My Product
-Comment=A vazae application
+Name=Vazaê
+Comment=Fodinha com regras de truco, contra robôs ou online
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/vazae.exe %u
+Exec=/usr/local/bin/vazae %u
 Terminal=false
 Type=Application
-Icon=vazae.exe
+Icon=vazae
 Categories=Utility;
-StartupWMClass=vazae.exe
+StartupWMClass=vazae
 
  

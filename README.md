@@ -1,59 +1,67 @@
-# Welcome to Your New Wails3 Project!
+# Vazaê
 
-Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
+Fodinha com as cartas e a força do truco, contra robôs. Feito com [Wails 3](https://v3.wails.io/) (Go) e React.
 
-## Getting Started
+## Baixar
 
-1. Navigate to your project directory in the terminal.
+As versões publicadas ficam na aba **Releases** do repositório:
 
-2. To run your application in development mode, use the following command:
+- **Windows:** `vazae-X.Y.Z-windows-amd64-installer.exe` instala o jogo. O `vazae-X.Y.Z-windows-amd64.exe` roda sem instalar e precisa do WebView2, que já vem no Windows 10 e 11.
+- **Android:** `vazae-X.Y.Z-android-arm64.apk`. Abra no celular e permita a instalação de fontes desconhecidas.
 
+Cada push também gera esses arquivos: na aba **Actions**, abra a execução e baixe em **Artifacts**.
+
+## Desenvolver
+
+Requisitos: Go (versão no `go.mod`), Node LTS, pnpm e o CLI do Wails na mesma versão do `go.mod`:
+
+```sh
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34
+wails3 dev                     # app com recarga automática
+go test -short ./game/... ./solo/...
+```
+
+`go test` sem `-short` também roda os torneios entre robôs (cerca de 80 s).
+
+## Builds e versões
+
+O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) roda em todo push e pull request:
+
+1. testa o motor e o serviço;
+2. gera o `.exe` e o instalador do Windows;
+3. gera o APK do Android (arm64).
+
+Para lançar uma versão, crie e envie uma tag:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+O workflow cria o Release com os três arquivos. Tags com sufixo, como `v0.2.0-rc1`, saem marcadas como pré-lançamento.
+
+Para gerar os mesmos arquivos localmente: `wails3 task windows:package` (precisa do NSIS) e `wails3 task android:package` (Linux ou macOS, com Android SDK, NDK e JDK 17+).
+
+### Assinatura do Android
+
+Por enquanto o APK é assinado com uma chave de teste, gerada a cada build. Por isso o Android não aceita uma versão nova por cima da antiga: é preciso desinstalar antes, e a Play Store recusa o arquivo.
+
+Para assinar com uma chave própria e permitir atualizações:
+
+1. Gere a chave uma vez e guarde-a em lugar seguro. Perder a chave impede publicar atualizações.
+
+   ```sh
+   keytool -genkeypair -v -keystore vazae.keystore -alias vazae -keyalg RSA -keysize 2048 -validity 10000
    ```
-   wails3 dev
-   ```
 
-   This will start your application and enable hot-reloading for both frontend and backend changes.
+2. Em **Settings > Secrets and variables > Actions**, crie quatro secrets:
+   - `ANDROID_KEYSTORE_BASE64`: o arquivo em base64 (`base64 -w0 vazae.keystore`);
+   - `ANDROID_KEYSTORE_PASSWORD`;
+   - `ANDROID_KEY_ALIAS` (no exemplo, `vazae`);
+   - `ANDROID_KEY_PASSWORD`.
 
-3. To build your application for production, use:
+O workflow passa a usar a chave sozinho, sem nenhuma mudança no código.
 
-   ```
-   wails3 build
-   ```
+## Identidade do app
 
-   This will create a production-ready executable in the `build` directory.
-
-## Exploring Wails3 Features
-
-Now that you have your project set up, it's time to explore the features that Wails3 offers:
-
-1. **Check out the examples**: The best way to learn is by example. Visit the `examples` directory in the `v3/examples` directory to see various sample applications.
-
-2. **Run an example**: To run any of the examples, navigate to the example's directory and use:
-
-   ```
-   go run .
-   ```
-
-   Note: Some examples may be under development during the alpha phase.
-
-3. **Explore the documentation**: Visit the [Wails3 documentation](https://v3.wails.io/) for in-depth guides and API references.
-
-4. **Join the community**: Have questions or want to share your progress? Join the [Wails Discord](https://discord.gg/JDdSxwjhGf) or visit the [Wails discussions on GitHub](https://github.com/wailsapp/wails/discussions).
-
-## Project Structure
-
-Take a moment to familiarize yourself with your project structure:
-
-- `frontend/`: Contains your frontend code (HTML, CSS, JavaScript/TypeScript)
-- `main.go`: The entry point of your Go backend
-- `app.go`: Define your application structure and methods here
-- `wails.json`: Configuration file for your Wails project
-
-## Next Steps
-
-1. Modify the frontend in the `frontend/` directory to create your desired UI.
-2. Add backend functionality in `main.go`.
-3. Use `wails3 dev` to see your changes in real-time.
-4. When ready, build your application with `wails3 build`.
-
-Happy coding with Wails3! If you encounter any issues or have questions, don't hesitate to consult the documentation or reach out to the Wails community.
+Nome, autor, descrição, ID (`com.vazae.app`) e versão base ficam em [`build/config.yml`](build/config.yml). Depois de mudar esse arquivo, rode `wails3 task common:update:build-assets` e revise o diff, porque ele reescreve os arquivos de cada plataforma em `build/`.
