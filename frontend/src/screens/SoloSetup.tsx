@@ -17,13 +17,18 @@ const KEY = "vazae:solo-setup"
 type Saved = {
   name: string
   bots: number
+  /** Overrides the rule set's lives; null follows the rule set. */
+  lives: number | null
   difficulty: Difficulty
   /** A preset or saved set; null means the custom rules below. */
   ruleSetId: string | null
   customRules?: unknown
 }
 
-const DEFAULTS: Saved = { name: "", bots: 3, difficulty: Difficulty.Medium, ruleSetId: "padrao" }
+const MIN_LIVES = 1
+const MAX_LIVES = 15
+
+const DEFAULTS: Saved = { name: "", bots: 3, lives: null, difficulty: Difficulty.Medium, ruleSetId: "padrao" }
 
 function load(): Saved {
   try {
@@ -69,7 +74,7 @@ export function SoloSetup({ status, onStart, onBack }: Props) {
         check={check}
         onCancel={() => setEditing(false)}
         onDone={(r, id) => {
-          setCfg({ ...cfg, ruleSetId: id, customRules: id ? undefined : r })
+          setCfg({ ...cfg, ruleSetId: id, customRules: id ? undefined : r, lives: null })
           setEditing(false)
         }}
       />
@@ -129,14 +134,21 @@ function Setup({
   const botsOk = range !== null && cfg.bots >= range[0] && cfg.bots <= range[1]
   const changed = chosen && builtIns ? changedRules(chosen.rules, builtIns.defaults).size : 0
 
+  // Raw text while typing, so the field can be cleared; null shows the stored value.
+  const [livesText, setLivesText] = useState<string | null>(null)
+  const livesShown = livesText ?? String(cfg.lives ?? chosen?.rules.players.lives ?? "")
+  const lives = /^\d+$/.test(livesShown) ? Number(livesShown) : NaN
+  const livesOk = lives >= MIN_LIVES && lives <= MAX_LIVES
+
   const submit = () => {
-    if (!chosen || !botsOk) return
+    if (!chosen || !botsOk || !livesOk) return
     try {
       localStorage.setItem(KEY, JSON.stringify(cfg))
     } catch {
       // Remembering the setup is a convenience; ignore blocked storage.
     }
-    onStart({ name: cfg.name.trim(), bots: cfg.bots, difficulty: cfg.difficulty, rules: chosen.rules })
+    const rules = { ...chosen.rules, players: { ...chosen.rules.players, lives } }
+    onStart({ name: cfg.name.trim(), bots: cfg.bots, difficulty: cfg.difficulty, rules })
   }
 
   return (
@@ -157,7 +169,8 @@ function Setup({
         <h1 className="font-slab text-3xl font-bold">Mesa contra robôs</h1>
 
         {/* Two columns on desktop so the whole form fits the window without scrolling. */}
-        <div className="flex flex-col gap-6 stage-lg:grid stage-lg:grid-cols-2 stage-lg:gap-x-8">
+        <div className="flex flex-col gap-6 stage-lg:flex-row stage-lg:items-start stage-lg:gap-x-8">
+          <div className="flex flex-col gap-6 stage-lg:flex-1">
           <Field label="Seu nome" htmlFor="name">
             <Input
               id="name"
@@ -198,6 +211,31 @@ function Setup({
             </ToggleGroup>
           </Field>
 
+          <Field
+            label="Vidas"
+            htmlFor="lives"
+            hint={livesOk ? "Quem perde todas sai da mesa." : `De ${MIN_LIVES} a ${MAX_LIVES} vidas.`}
+          >
+            <Input
+              id="lives"
+              type="number"
+              inputMode="numeric"
+              min={MIN_LIVES}
+              max={MAX_LIVES}
+              value={livesShown}
+              aria-invalid={!livesOk}
+              disabled={!chosen}
+              onChange={(e) => {
+                setLivesText(e.target.value)
+                const n = Number(e.target.value)
+                if (Number.isInteger(n) && n >= MIN_LIVES && n <= MAX_LIVES) setCfg({ ...cfg, lives: n })
+              }}
+            />
+          </Field>
+
+          </div>
+
+          <div className="flex flex-col gap-6 stage-lg:flex-1">
           <Field label="Dificuldade" hint={LEVEL_HINT[cfg.difficulty]}>
             <ToggleGroup
               type="single"
@@ -231,7 +269,10 @@ function Setup({
                   id="rules"
                   className="h-11 w-full rounded-md border border-input bg-transparent px-3 text-base"
                   value={cfg.ruleSetId ?? ""}
-                  onChange={(e) => setCfg({ ...cfg, ruleSetId: e.target.value || null })}
+                  onChange={(e) => {
+                    setLivesText(null)
+                    setCfg({ ...cfg, ruleSetId: e.target.value || null, lives: null })
+                  }}
                 >
                   {cfg.ruleSetId === null && <option value="">Personalizadas</option>}
                   {sets.map((s) => (
@@ -241,10 +282,9 @@ function Setup({
                   ))}
                 </select>
                 <p className="text-sm text-muted-foreground">
-                  {chosen.rules.players.lives} {chosen.rules.players.lives === 1 ? "vida" : "vidas"}
                   {changed === 0
-                    ? ", todas as regras no padrão."
-                    : `, ${changed} ${changed === 1 ? "regra diferente" : "regras diferentes"} do padrão.`}
+                    ? "Todas as regras no padrão."
+                    : `${changed} ${changed === 1 ? "regra diferente" : "regras diferentes"} do padrão.`}
                 </p>
                 <Button type="button" variant="outline" className="self-start" onClick={onEdit}>
                   Editar regras
@@ -252,6 +292,7 @@ function Setup({
               </>
             )}
           </Field>
+          </div>
         </div>
 
         {status.kind === "error" && (
@@ -261,7 +302,7 @@ function Setup({
           </Alert>
         )}
 
-        <Button type="submit" size="lg" disabled={starting || !chosen || !botsOk}>
+        <Button type="submit" size="lg" disabled={starting || !chosen || !botsOk || !livesOk}>
           {starting ? "Embaralhando…" : status.kind === "error" ? "Tentar de novo" : "Sentar à mesa"}
         </Button>
       </form>
