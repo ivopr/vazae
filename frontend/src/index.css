@@ -1,0 +1,175 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource/zilla-slab/600.css";
+@import "@fontsource/zilla-slab/700.css";
+@import "@fontsource/atkinson-hyperlegible/400.css";
+@import "@fontsource/atkinson-hyperlegible/700.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Breakpoints follow the stage, not the window: on desktop a small window shows the
+   design canvas scaled down, and media queries would still see the small window. */
+@custom-variant stage-sm (@container stage (width >= 40rem));
+@custom-variant stage-md (@container stage (width >= 48rem));
+@custom-variant stage-lg (@container stage (width >= 64rem));
+
+/* Tokens come from DESIGN.md; every text pair there was checked for WCAG AA. */
+@theme inline {
+    --font-sans: 'Atkinson Hyperlegible', system-ui, sans-serif;
+    --font-heading: 'Zilla Slab', Georgia, serif;
+    --font-slab: 'Zilla Slab', Georgia, serif;
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-felt: var(--felt);
+    --color-felt-foreground: var(--felt-foreground);
+    --color-felt-muted: var(--felt-muted);
+    --color-felt-border: var(--felt-border);
+    --color-felt-deep: var(--felt-deep);
+    --color-paper: var(--paper);
+    --color-ink: var(--ink);
+    --color-suit-red: var(--suit-red);
+    --color-turn: var(--turn);
+
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: var(--radius);
+    --radius-xl: 14px;
+}
+
+/* Claro: feltro de dia, painéis de papel. */
+:root {
+    --felt: #25573F;
+    --felt-foreground: #F4ECD8;
+    --felt-muted: #D3E0D6;
+    --felt-border: #7FA48E;
+    --felt-deep: #1E4A35;
+    --paper: #F7F0DF;
+    --ink: #1E1A16;
+    --suit-red: #B3261E;
+    --turn: #E0A526;
+    --danger-on-felt: #FFB4A8;
+
+    --background: var(--felt);
+    --foreground: var(--felt-foreground);
+    --card: var(--paper);
+    --card-foreground: var(--ink);
+    --popover: var(--paper);
+    --popover-foreground: var(--ink);
+    --primary: var(--turn);
+    --primary-foreground: var(--ink);
+    --secondary: var(--felt-deep);
+    --secondary-foreground: var(--felt-foreground);
+    --muted: #EDE3CB;
+    --muted-foreground: #5C5246;
+    --accent: #EDE3CB;
+    --accent-foreground: var(--ink);
+    --destructive: #B3261E;
+    --border: #8A7B60;
+    --input: #8A7B60;
+    --ring: var(--turn);
+    --radius: 10px;
+}
+
+/* Escuro: bar à noite, painéis de madeira. As cartas continuam papel. */
+.dark {
+    --felt: #143326;
+    --felt-foreground: #EDE3CC;
+    --felt-muted: #A9C2B2;
+    --felt-border: #5E8A72;
+    --felt-deep: #0F2A1F;
+    --paper: #F2E9D3;
+    --turn: #E8B13A;
+    --danger-on-felt: #F08A80;
+
+    --card: #2A1F17;
+    --card-foreground: #EDE3CC;
+    --popover: #2A1F17;
+    --popover-foreground: #EDE3CC;
+    --muted: #3A2C21;
+    --muted-foreground: #B8A98E;
+    --accent: #3A2C21;
+    --accent-foreground: #EDE3CC;
+    --destructive: #F08A80;
+    --border: #7A6A55;
+    --input: #7A6A55;
+}
+
+/* Painéis trocam o anel de foco: mostarda some no papel claro (1.9:1). */
+.panel {
+    --foreground: var(--card-foreground);
+    --ring: var(--ink);
+    --border: #8A7B60;
+    --input: #8A7B60;
+    --muted: #EDE3CB;
+    --muted-foreground: #5C5246;
+    --destructive: #B3261E;
+}
+.dark .panel {
+    --ring: var(--turn);
+    --border: #7A6A55;
+    --input: #7A6A55;
+    --muted: #3A2C21;
+    --muted-foreground: #B8A98E;
+    --destructive: #F08A80;
+}
+/* Sobre o feltro, bordas de controle usam o tom de feltro que passa 3:1. */
+.on-felt {
+    --border: var(--felt-border);
+    --input: var(--felt-border);
+    --ring: var(--turn);
+    --muted: var(--felt-deep);
+    --muted-foreground: var(--felt-muted);
+    --destructive: var(--danger-on-felt);
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    html {
+        @apply font-sans;
+        -webkit-tap-highlight-color: transparent;
+    }
+    /* The page never scrolls; the stage (components/Stage.tsx) fits or scrolls itself. */
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+    body {
+        @apply bg-background text-foreground antialiased;
+    }
+    :focus-visible {
+        outline: 3px solid var(--ring);
+        outline-offset: 2px;
+    }
+    button:not(:disabled), [role="button"]:not(:disabled) {
+        cursor: pointer;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
