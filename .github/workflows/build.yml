@@ -127,8 +127,6 @@ jobs:
 
       - name: Build and package
         env:
-          # The runner ships the Android SDK and several NDKs; use the newest.
-          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
           VERSION_NAME: ${{ steps.version.outputs.label }}
           VERSION_CODE: ${{ github.run_number }}
           # Release signing: set these secrets to sign with your own key. Left
@@ -138,6 +136,10 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
+          # The runner ships the Android SDK and several NDKs; use the newest.
+          # It is a runner variable, so it's read here: the workflow's env
+          # context doesn't see runner variables.
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
             export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.keystore"
