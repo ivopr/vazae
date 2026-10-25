@@ -118,7 +118,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Install the Wails CLI
-        run: go install "github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+        # On Linux the CLI builds with cgo against GTK 4 and WebKitGTK 6, which
+        # the runner doesn't ship.
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
 
       - name: Build and package
         env:
