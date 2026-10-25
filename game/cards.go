@@ -1,4 +1,4 @@
-// Package game implements the rules of Fodinha with a truco deck.
+// Package game implements the rules of Vazaê, a trick-taking bidding game played with a truco deck.
 // It has no I/O and no global state; every Match is deterministic given its seed.
 package game
 

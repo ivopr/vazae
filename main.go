@@ -25,7 +25,7 @@ func init() {
 func main() {
 	app := application.New(application.Options{
 		Name:        "Vazaê",
-		Description: "Fodinha com regras de truco, contra robôs ou online",
+		Description: "Jogo de vazas com regras de truco, contra robôs ou online",
 		Services: []application.Service{
 			application.NewService(solo.NewService()),
 		},

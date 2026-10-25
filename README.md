@@ -1,6 +1,6 @@
 # Vazaê
 
-Fodinha com as cartas e a força do truco, contra robôs. Feito com [Wails 3](https://v3.wails.io/) (Go) e React.
+Jogo de vazas com as cartas e a força do truco, contra robôs. Feito com [Wails 3](https://v3.wails.io/) (Go) e React.
 
 ## Baixar
 
