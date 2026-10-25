@@ -356,6 +356,27 @@ func TestAllCancelled(t *testing.T) { // rule 26
 	}
 }
 
+func TestCancelVoidsTrick(t *testing.T) { // rule 36
+	hands := [][]Card{
+		{c(Three, Hearts), c(Six, Clubs)},
+		{c(Three, Spades), c(Six, Hearts)},
+		{c(Two, Spades), c(Five, Hearts)},
+	}
+	run := func(voids bool) *Match {
+		r := DefaultRules()
+		r.Tricks.CancelVoidsTrick = voids
+		m := playing(t, r, c(Four, Clubs), hands...)
+		playAll(t, m, c(Three, Hearts), c(Three, Spades), c(Two, Spades))
+		return m
+	}
+	if m := run(false); m.LastTrickWinner != 2 {
+		t.Fatalf("off: winner %d, want 2", m.LastTrickWinner)
+	}
+	if m := run(true); m.LastTrickWinner != -1 || m.Leader != 0 {
+		t.Fatalf("on: winner %d leader %d, want -1 and 0", m.LastTrickWinner, m.Leader)
+	}
+}
+
 func TestNextLeaderRotates(t *testing.T) { // rule 27
 	r := DefaultRules()
 	r.Tricks.NextLeader = NextRotate

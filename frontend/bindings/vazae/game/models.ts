@@ -450,6 +450,12 @@ export interface TrickRules {
     "winner": TrickWinner;
     "cancelEqual": boolean;
     "manilhasCancel": boolean;
+
+    /**
+     * CancelVoidsTrick: a cancelled pair leaves the trick with no winner,
+     * instead of the next card taking it. AllCancelled then applies.
+     */
+    "cancelVoidsTrick": boolean;
     "allCancelled": AllCancelled;
     "nextLeader": NextLeader;
 }

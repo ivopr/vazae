@@ -239,6 +239,7 @@ func randomRules(rng *rand.Rand) game.Rules {
 	r.Tricks.Winner = []game.TrickWinner{game.WinStrongest, game.WinWeakest}[pick(2)]
 	r.Tricks.CancelEqual = pick(2) == 0
 	r.Tricks.ManilhasCancel = pick(2) == 0
+	r.Tricks.CancelVoidsTrick = pick(2) == 0
 	r.Tricks.AllCancelled = []game.AllCancelled{game.CancelSameLeader, game.CancelNextLeads, game.CancelLastCardWins}[pick(3)]
 	r.Tricks.NextLeader = []game.NextLeader{game.NextWinner, game.NextRotate}[pick(2)]
 

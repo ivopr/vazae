@@ -152,13 +152,16 @@ const (
 )
 
 type TrickRules struct {
-	FirstLeader    FirstLeader  `json:"firstLeader"`
-	Follow         Follow       `json:"follow"`
-	Winner         TrickWinner  `json:"winner"`
-	CancelEqual    bool         `json:"cancelEqual"`
-	ManilhasCancel bool         `json:"manilhasCancel"`
-	AllCancelled   AllCancelled `json:"allCancelled"`
-	NextLeader     NextLeader   `json:"nextLeader"`
+	FirstLeader    FirstLeader `json:"firstLeader"`
+	Follow         Follow      `json:"follow"`
+	Winner         TrickWinner `json:"winner"`
+	CancelEqual    bool        `json:"cancelEqual"`
+	ManilhasCancel bool        `json:"manilhasCancel"`
+	// CancelVoidsTrick: a cancelled pair leaves the trick with no winner,
+	// instead of the next card taking it. AllCancelled then applies.
+	CancelVoidsTrick bool         `json:"cancelVoidsTrick"`
+	AllCancelled     AllCancelled `json:"allCancelled"`
+	NextLeader       NextLeader   `json:"nextLeader"`
 }
 
 type OneCardRules struct {
@@ -527,8 +530,10 @@ func (r Rules) cancelled(manilhas []Card, trick []Played) []bool {
 func (r Rules) trickWinner(manilhas []Card, trick []Played) int {
 	dead := r.cancelled(manilhas, trick)
 	winner, best := -1, 0
+	voided := false
 	for i, pl := range trick {
 		if dead[i] {
+			voided = voided || r.Tricks.CancelVoidsTrick
 			continue
 		}
 		s := r.strength(manilhas, pl.Card)
@@ -538,6 +543,9 @@ func (r Rules) trickWinner(manilhas []Card, trick []Played) int {
 		if winner < 0 || s > best {
 			winner, best = pl.Player, s
 		}
+	}
+	if voided {
+		winner = -1
 	}
 	if winner < 0 && len(trick) > 0 && r.Tricks.AllCancelled == CancelLastCardWins {
 		winner = trick[len(trick)-1].Player
