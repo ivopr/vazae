@@ -436,6 +436,9 @@ Desenhados em SVG (ouros, espadas, copas, paus) para todo aparelho imprimir a me
 - Som sintetizado: um estalo de pano por carta, uma rajada de estalos na distribuição, duas fichas batendo por vida perdida (no ritmo do deslize), um sino de duas notas quando a vez chega a você. Vibração de 25ms na sua vez e 60ms ao perder vida. Um botão só no menu liga e desliga som e vibração.
 - `prefers-reduced-motion: reduce` troca tudo por mudança instantânea. Nenhuma animação em loop.
 
+### Ícone do app
+A ficha de vida do jogo vista de cima, sobre o feltro: barro `chip` com seis incrustações marfim, anel tracejado, miolo marfim e um V art déco em `rail` (traço grosso à esquerda, fino à direita, serifas retas). O desenho mestre é `build/appicon.svg`; dele saem `build/appicon.png` (1024, cantos transparentes, filete de latão), o `.ico` do Windows e o `.icns` (via `wails3 generate icons`), o `build/ios/icon.png` (feltro até a borda, opaco), os PNGs `mipmap-*` do Android e o ícone adaptativo (fundo de feltro, ficha dentro do círculo seguro, camada monocromática para o tema do Android 13), o `favicon.svg` e a camada do Icon Composer em `build/appicon.icon`. Lê a partir de 16px.
+
 ## Do's and Don'ts
 
 ### Do:
