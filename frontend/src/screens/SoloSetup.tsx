@@ -187,7 +187,7 @@ function Setup({
           <Field
             label="Robôs na mesa"
             hint={
-              range && (range[0] > 1 || range[1] < 7)
+              range && (range[0] > 1 || range[1] < 9)
                 ? `Com estas regras, de ${range[0]} a ${range[1]} robôs.`
                 : "Com mais gente, as rodadas têm menos cartas."
             }
@@ -197,16 +197,16 @@ function Setup({
               variant="outline"
               value={String(cfg.bots)}
               onValueChange={(v) => v && setCfg({ ...cfg, bots: Number(v) })}
-              // Phones: two full rows (4 and 3) instead of a seventh chip wrapping alone.
-              className="grid w-full grid-cols-12 gap-2 stage-sm:flex stage-sm:w-fit"
+              // Phones: two full rows (5 and 4) instead of a ninth chip wrapping alone.
+              className="grid w-full grid-cols-20 gap-2 stage-sm:flex stage-sm:w-fit"
               aria-label="Robôs na mesa"
             >
-              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
                 <ToggleGroupItem
                   key={n}
                   value={String(n)}
                   disabled={range !== null && (n < range[0] || n > range[1])}
-                  className={cn("text-xl font-bold", n <= 4 ? "col-span-3" : "col-span-4")}
+                  className={cn("text-xl font-bold", n <= 5 ? "col-span-4" : "col-span-5")}
                 >
                   {n}
                 </ToggleGroupItem>
@@ -324,7 +324,7 @@ function useBotRange(rules: Rules | null): [number, number] | null {
     let live = true
     Solo.BotRange(rules)
       .then((r) => live && r && setRange([r[0], r[1]]))
-      .catch(() => live && setRange([1, 7]))
+      .catch(() => live && setRange([1, 9]))
     return () => {
       live = false
     }

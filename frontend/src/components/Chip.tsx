@@ -68,11 +68,13 @@ type Props = {
   size?: Size
   /** Pile the chips tighter, for one-line plaques where the name needs the room. */
   dense?: boolean
+  /** Always one chip with the lives left and nothing else, for the smallest plaques. */
+  tally?: boolean
   className?: string
 }
 
 /** Lives as chips in front of the player; a lost one slides to the bank and leaves its ring. */
-export function Chips({ lives, total, from, size = "md", dense, className }: Props) {
+export function Chips({ lives, total, from, size = "md", dense, tally, className }: Props) {
   const prev = useRef(from ?? lives)
   const start = from ?? prev.current
   useEffect(() => {
@@ -84,8 +86,9 @@ export function Chips({ lives, total, from, size = "md", dense, className }: Pro
   const lost = count - Math.max(lives, 0)
 
   // A one-line plaque has no room for a pile taller than a row: one chip with the
-  // lives left, one ring with the lives lost. Nothing lost disappears.
-  if (dense && count > PER_ROW) {
+  // lives left, one ring with the lives lost. Nothing lost disappears, except on a
+  // tally, whose plaque shows only what is left (the round summary keeps the rest).
+  if ((dense && count > PER_ROW) || tally) {
     return (
       <span className={cn("inline-flex items-center gap-0.5 text-sm leading-none font-bold", className)} role="img" aria-label={label}>
         {lives > 0 ? (
@@ -96,7 +99,7 @@ export function Chips({ lives, total, from, size = "md", dense, className }: Pro
         ) : (
           <span aria-hidden>Fora</span>
         )}
-        {lost > 0 && (
+        {lost > 0 && !tally && (
           <>
             <Chip lost size={size} className="ml-1" />
             <span className="text-muted-foreground" aria-hidden>

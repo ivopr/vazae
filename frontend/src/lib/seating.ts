@@ -34,6 +34,10 @@ export type Layout = {
   /** Where the legend is printed when there are no arcs for it. */
   legend: Pt
   plaque: Size
+  /** Some card has to cover something, or (on a phone, where cards carry no names) points at another seat than its own. */
+  crowded: boolean
+  /** A crowd on a phone: plaques in rows over the far rail, the trick in a grid with names (see galleryLayout). */
+  gallery: boolean
 }
 
 type Options = {
@@ -49,16 +53,20 @@ type Options = {
   nearSpan?: [number, number]
   /** Whether any card lies on the felt; with none, no card can be pushed off its path. */
   cardsOut?: boolean
+  /** Whether the house legend is printed on the felt (a phone shows it in its header instead). */
+  printed?: boolean
 }
 
 const DEG = Math.PI / 180
 
 // The printed VIRA box (PlayingCard sm, label and manilha line), with a little air.
 // On a phone the box lies flat, card beside its label, to leave the far seats room.
-const VIRA_TALL = { w: 76, h: 114 }
-const VIRA_FLAT = { w: 108, h: 84 }
-// The straight legend a crowded table prints under the VIRA box.
+const VIRA_TALL = { w: 76, h: 118 }
+const VIRA_FLAT = { w: 112, h: 88 }
+// The straight legend a crowded table prints by the VIRA box.
 const LEGEND = { w: 150, h: 34 }
+// How far the "jogando…" ribbon on the plaque of whoever's turn it is hangs below it (Seat).
+const TAG = 8
 
 /**
  * Angles round the oval for each opponent, in screen degrees (0 is your right, 270
@@ -69,7 +77,9 @@ function angles(m: number, wide: boolean): number[] {
   if (m === 1) return [270]
   // On a phone three opponents sit higher up the oval, leaving the near quarters to the legend.
   const three = wide ? [202, 338] : [220, 320]
-  const [from, to] = m === 2 ? [228, 312] : m === 3 ? three : m === 4 ? [190, 350] : [164, 376]
+  // A crowd on a phone keeps its side seats level with the middle, leaving felt under them for their cards.
+  const crowd = wide ? [164, 376] : [176, 364]
+  const [from, to] = m === 2 ? [228, 312] : m === 3 ? three : m === 4 ? [190, 350] : crowd
   return Array.from({ length: m }, (_, k) => from + ((to - from) * k) / (m - 1))
 }
 
@@ -119,9 +129,88 @@ function legendArcs(c: Pt, lx: number, ly: number, seats: Pt[], plaque: Size, h:
   return long(left) && long(right) ? { left, right } : null
 }
 
+/** Whether a table this size is laid out as a gallery: a phone with six or more opponents. */
+export const isGallery = (m: number, wide: boolean) => !wide && m >= 6
+
+// The gallery: small plaques in rows of three over the far rail, and the trick in rows
+// of five under the VIRA box, each card with its owner's name under it.
+const GALLERY_COLS = 3
+const GALLERY_GAP = 6
+const GALLERY_PLAQUE_H = 44
+const TRICK_COLS = 5
+const TRICK_GAP = 6
+/** The name under each card of a gallery's trick. */
+export const NAME_TAG = 16
+
+/**
+ * A crowd too big to sit round a phone's oval: the opponents in a gallery of small
+ * plaques, the last row straddling the far rail, and the trick in a grid below the
+ * VIRA box, in play order with your card last.
+ */
+function galleryLayout(w: number, h: number, m: number, opts: Options): Layout {
+  const { card = { w: 52, h: 72 }, open = false } = opts
+  const near = Math.max(opts.near ?? 0, open ? 12 : 0)
+  const rows = Math.ceil(m / GALLERY_COLS)
+  const plaque = { w: Math.floor((w - 8 - (GALLERY_COLS - 1) * GALLERY_GAP) / GALLERY_COLS), h: GALLERY_PLAQUE_H }
+  const rowY = (r: number) => 4 + plaque.h / 2 + r * (plaque.h + GALLERY_GAP)
+  // Each row centred, so a short last row sits in the middle.
+  const centred = (count: number, cell: number, gap: number, k: number) => w / 2 + (k - (count - 1) / 2) * (cell + gap)
+  const seats = Array.from({ length: m }, (_, i) => {
+    const r = Math.floor(i / GALLERY_COLS)
+    return { x: centred(Math.min(GALLERY_COLS, m - r * GALLERY_COLS), plaque.w, GALLERY_GAP, i % GALLERY_COLS), y: rowY(r) }
+  })
+
+  // The far rail runs through the last row of plaques.
+  const top = rowY(rows - 1)
+  const bottom = open ? h + 40 : h - 4
+  const c = { x: w / 2, y: (top + bottom) / 2 }
+  const rx = w / 2 - 14
+  const ry = Math.max(80, (bottom - top) / 2)
+  const galleryBottom = top + plaque.h / 2 + TAG
+  const vira = { x: c.x, y: galleryBottom + 6 + VIRA_FLAT.h / 2 }
+  const mid = { x: c.x, y: (galleryBottom + h - near) / 2 }
+
+  // The trick: everyone's slot in play order, yours last, rows of five centred.
+  const slot = { w: card.w, h: card.h + NAME_TAG }
+  const n = m + 1
+  const firstRow = vira.y + VIRA_FLAT.h / 2 + 6 + slot.h / 2
+  const spots = Array.from({ length: n }, (_, i) => {
+    const r = Math.floor(i / TRICK_COLS)
+    // The card's own centre: the slot's, lifted by half its name.
+    return { x: centred(Math.min(TRICK_COLS, n - r * TRICK_COLS), slot.w, TRICK_GAP, i % TRICK_COLS), y: firstRow + r * (slot.h + TRICK_GAP) - NAME_TAG / 2 }
+  })
+  const land = spots.slice(0, m)
+  const meLand = spots[m]
+  // The last row's names must stay clear of your fanned hand.
+  const crowded = meLand.y + card.h / 2 + NAME_TAG > h - near + 8
+
+  return {
+    w,
+    h,
+    c,
+    rx,
+    ry,
+    lx: rx - 24,
+    ly: ry - 24,
+    mid,
+    seats,
+    land,
+    me: { x: c.x, y: open ? h : c.y + ry },
+    meLand,
+    vira,
+    viraFlat: true,
+    arcs: null,
+    legend: { x: vira.x, y: vira.y },
+    plaque,
+    crowded,
+    gallery: true,
+  }
+}
+
 /** The table laid out for a felt of w×h with m opponents. */
 export function layout(w: number, h: number, m: number, opts: Options = {}): Layout {
-  const { wide = false, card = { w: 64, h: 124 }, open = false } = opts
+  if (isGallery(m, !!opts.wide)) return galleryLayout(w, h, m, opts)
+  const { wide = false, card = { w: 64, h: 124 }, open = false, printed = true } = opts
   const VIRA = wide ? VIRA_TALL : VIRA_FLAT
   // Keep a little felt clear above the dock's edge even with no hand fanned over it.
   const near = Math.max(opts.near ?? 0, open ? 12 : 0)
@@ -144,8 +233,7 @@ export function layout(w: number, h: number, m: number, opts: Options = {}): Lay
   const lx = rx - 24
   const ly = ry - plaque.h / 2 - 12
   // The fan rises highest in the middle; out at the near quarters it covers about half as much.
-  let arcs = open && m > 0 ? legendArcs(c, lx, ly, seats, plaque, h, { span: opts.nearSpan ?? [c.x, c.x], h: near }) : null
-  const legend = { x: vira.x, y: vira.y + VIRA.h / 2 + LEGEND.h / 2 + 2 }
+  let arcs = printed && open && m > 0 ? legendArcs(c, lx, ly, seats, plaque, h, { span: opts.nearSpan ?? [c.x, c.x], h: near }) : null
 
   // Each card lands at the first spot that covers nothing: no plaque, not the VIRA box,
   // not the straight legend, not a card already down. Spots are tried along the line from
@@ -162,12 +250,25 @@ export function layout(w: number, h: number, m: number, opts: Options = {}): Lay
       if (((x - c.x) / (rx - 11)) ** 2 + ((y - c.y) / (ry - 11)) ** 2 <= 1) feltSpots.push({ x, y })
     }
   }
+  const me = { x: c.x, y: open ? h : c.y + ry }
+  /** Direction of a point seen from the middle of the felt, and the size of a turn between two. */
+  const bearing = (p: Pt) => Math.atan2(p.y - mid.y, p.x - mid.x)
+  const turn = (a: number) => Math.abs(Math.atan2(Math.sin(a), Math.cos(a)))
   // Your card first: straight in front of you, above your hand (or below the vira
   // when the felt is short). Everyone else's card works around it.
   const meLand = { x: mid.x, y: Math.min(h - near - card.h / 2 - 6, h - card.h / 2) }
   if (!apart(meLand, card, vira, VIRA)) meLand.y = vira.y + (VIRA.h + card.h) / 2 + 4
+  // The straight legend goes under the VIRA box, or over it when your card lies there.
+  const legend = { x: vira.x, y: vira.y + VIRA.h / 2 + LEGEND.h / 2 + 2 }
+  if (!apart(meLand, card, legend, LEGEND)) legend.y = vira.y - VIRA.h / 2 - LEGEND.h / 2 - 2
+  // A plaque with its "jogando…" tag hanging below it.
+  const tagged = (s: Pt) => ({ x: s.x, y: s.y + TAG / 2 })
+  const plaqueTag = { w: plaque.w, h: plaque.h + TAG }
 
-  /** Places every opponent's card; `strayed` when one had to go off its own paths. */
+  /**
+   * Places every opponent's card; `strayed` when one had to go off its own paths,
+   * `lost` when one covers something or lies nearer another seat than its own.
+   */
   const place = (withArcs: typeof arcs) => {
     // The legend arcs, as a string of small boxes along the middle stretch the centred text covers.
     const arcBoxes: Pt[] = []
@@ -187,19 +288,36 @@ export function layout(w: number, h: number, m: number, opts: Options = {}): Lay
     }
     // Plaques get a wider berth: a card lies a few degrees askew.
     const free = (p: Pt, placed: Pt[]) =>
-      seats.every((q) => apart(p, card, q, plaque, 8)) &&
+      seats.every((q) => apart(p, card, tagged(q), plaqueTag, 8)) &&
       arcBoxes.every((q) => apart(p, card, q, ARC_BOX, 0)) &&
       apart(p, card, vira, VIRA) &&
-      (withArcs !== null || apart(p, card, legend, LEGEND)) &&
+      (!printed || withArcs !== null || apart(p, card, legend, LEGEND)) &&
       placed.every((q) => apart(p, card, q, card)) &&
       p.y - card.h / 2 >= 0 &&
       p.y + card.h / 2 <= h - near + 24
+    // Seats across the table go first: they have the least room, the side seats can
+    // tuck a card under their plaque. When that leaves a card lost, other orders get
+    // a turn: the far seats first, then the low ones.
+    const ids = seats.map((_, i) => i)
+    const orders = [
+      [...ids].sort((a, b) => Math.abs(seats[a].x - c.x) - Math.abs(seats[b].x - c.x)),
+      [...ids].sort((a, b) => seats[a].y - seats[b].y),
+      [...ids].sort((a, b) => seats[b].y - seats[a].y),
+    ]
+    const tries = [placeIn(orders[0], free)]
+    for (const order of orders.slice(1)) {
+      if (!tries[tries.length - 1].lost) break
+      tries.push(placeIn(order, free))
+    }
+    return tries.find((t) => !t.lost) ?? tries[0]
+  }
+
+  /** Places each opponent's card in the given order, each clear of the ones before it. */
+  const placeIn = (order: number[], free: (p: Pt, placed: Pt[]) => boolean) => {
     const land: Pt[] = new Array(seats.length)
     const placed: Pt[] = [meLand]
     let strayed = false
-    // Seats across the table go first: they have the least room, the side seats can
-    // tuck a card under their plaque.
-    const order = seats.map((_, i) => i).sort((a, b) => Math.abs(seats[a].x - c.x) - Math.abs(seats[b].x - c.x))
+    let lost = false
     for (const i of order) {
       const s = seats[i]
       // Seats low on the sides send their card straight across, not up toward the middle.
@@ -209,7 +327,7 @@ export function layout(w: number, h: number, m: number, opts: Options = {}): Lay
         if (reach + d <= 0.85) along.push(lerp(s, to, reach + d))
         if (d > 0 && reach - d >= 0.15) along.push(lerp(s, to, reach - d))
       }
-      const under = s.y + (plaque.h + card.h) / 2 + 8
+      const under = s.y + (plaque.h + card.h) / 2 + TAG + 8
       const inward = s.x < c.x ? 1 : -1
       const tucked = [
         { x: clampX(s.x + (inward * (plaque.w - card.w)) / 2), y: under },
@@ -220,26 +338,33 @@ export function layout(w: number, h: number, m: number, opts: Options = {}): Lay
       const usual = lerp(s, to, reach)
       const own = [...along, ...tucked].find((p) => free(p, placed))
       if (!own) strayed = true
-      land[i] =
-        own ??
-        // Nothing on its own paths: the nearest free spot anywhere on the felt.
-        feltSpots.sort((a, b) => Math.hypot(a.x - usual.x, a.y - usual.y) - Math.hypot(b.x - usual.x, b.y - usual.y)).find((p) => free(p, placed)) ??
-        usual
+      // Nothing on its own paths: the nearest free spot anywhere on the felt.
+      const spot = own ?? feltSpots.sort((a, b) => Math.hypot(a.x - usual.x, a.y - usual.y) - Math.hypot(b.x - usual.x, b.y - usual.y)).find((p) => free(p, placed))
+      land[i] = spot ?? usual
+      // On a phone the card has no name under it: whose it is reads from its direction
+      // off the middle, so it must point at its own seat.
+      const off = (q: Pt) => turn(bearing(land[i]) - bearing(q))
+      if (!spot || (!wide && [...seats, me].some((q) => q !== s && off(q) < off(s)))) lost = true
       placed.push(land[i])
     }
-    return { land, strayed }
+    return { land, strayed, lost }
   }
 
   // The legend gives way before a card does: if the arcs push any card off its own
   // paths, the legend is printed straight under the VIRA box instead.
   const first = place(arcs)
   let land = first.land
-  if (first.strayed && arcs && opts.cardsOut !== false) {
-    arcs = null
-    land = place(null).land
+  // Judged with the legend out of the way, so it holds whether or not cards are out.
+  let crowded = first.lost
+  if (first.strayed && arcs) {
+    const plain = place(null)
+    crowded = plain.lost
+    if (opts.cardsOut !== false) {
+      arcs = null
+      land = plain.land
+    }
   }
 
-  const me = { x: c.x, y: open ? h : c.y + ry }
 
   return {
     w,
@@ -259,5 +384,7 @@ export function layout(w: number, h: number, m: number, opts: Options = {}): Lay
     viraFlat: !wide,
     legend,
     plaque,
+    crowded,
+    gallery: false,
   }
 }

@@ -15,7 +15,7 @@ import { useStage } from "@/components/Stage"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import { LABEL, TrickArea, Vira, trickCaption } from "@/components/TrickArea"
 import { LEVEL_LABEL, type SoloGame } from "@/game/useSolo"
-import type { Layout } from "@/lib/seating"
+import { isGallery, type Layout } from "@/lib/seating"
 import { buzz, play, setSound, useSound } from "@/lib/sound"
 import { cn } from "@/lib/utils"
 import { RoundSummary } from "./RoundSummary"
@@ -27,9 +27,11 @@ const WIDE = 1024
 // How far your fanned hand rises out of the dock over the felt's near edge.
 const FAN_RISE = 72
 
-// Each trick card with the name label under it, placed by the centre of the pair
-// (TrickArea lifts the card by half a label).
-const TRICK_CARD = { sm: { w: 48, h: 64 + LABEL }, md: { w: 68, h: 96 + LABEL }, lg: { w: 84, h: 120 + LABEL } }
+// Each trick card, a little wider for its tilt. On a desktop the name label under it
+// counts too, the pair placed by its centre (TrickArea lifts the card by half a label);
+// a phone's trick has no labels.
+const TRICK_CARD = { sm: { w: 52, h: 68 }, md: { w: 68, h: 96 }, lg: { w: 84, h: 120 } }
+const trickBox = (s: keyof typeof TRICK_CARD, wide: boolean) => ({ w: TRICK_CARD[s].w, h: TRICK_CARD[s].h + (wide ? LABEL : 4) })
 
 /** Whether the element is at least WIDE across, kept current on resize. */
 function useWide<T extends HTMLElement>() {
@@ -124,7 +126,9 @@ export function Table({ game, onLeave }: Props) {
   const order = Array.from({ length: n - 1 }, (_, k) => (view.me + 1 + k) % n)
   const summaryOpen = view.phase === Phase.PhaseRoundEnd && summaryClosedRound !== view.round
   const sum = players.reduce((s, p) => s + (p.bidded ? p.bid : 0), 0)
-  const trickSize = wide ? (n > 5 ? "md" : "lg") : n > 4 ? "sm" : "md"
+  // Trick sizes to try, largest first: the bigger card whenever the felt has room for it;
+  // a phone gallery's grid always holds small ones.
+  const trickSizes: (keyof typeof TRICK_CARD)[] = wide ? (n > 5 ? ["md", "sm"] : ["lg"]) : isGallery(n - 1, wide) ? ["sm"] : ["md", "sm"]
   const legendRound = `Rodada ${view.round + 1} · ${view.cards === 1 ? "1 carta" : `${view.cards} cartas`}`
   const legendSum = `Palpites somam ${sum} de ${view.cards}`
   const roundText = `Rodada ${view.round + 1}, ${view.cards === 1 ? "1 carta" : `${view.cards} cartas`}`
@@ -190,9 +194,17 @@ export function Table({ game, onLeave }: Props) {
       <header className="relative z-10 flex items-center gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-1 stage-lg:px-8 stage-lg:pt-4">
         <span className="font-display text-[1.75rem] leading-none text-marquee">Vazaê</span>
         <span className="sr-only">{roundText}</span>
-        {wide && (
+        {wide ? (
           <span className="text-sm text-room-muted" aria-hidden>
             {roundText}
+          </span>
+        ) : (
+          // A phone's felt has no room for the house legend, so the header carries it.
+          <span className="flex min-w-0 flex-1 flex-col items-center text-center text-xs leading-snug text-room-muted" aria-hidden>
+            <span>{legendRound}</span>
+            <span>
+              Palpites: <b className="text-room-foreground">{sum}</b> de {view.cards}
+            </span>
           </span>
         )}
         <div className="ml-auto">
@@ -205,65 +217,70 @@ export function Table({ game, onLeave }: Props) {
           className={cn("flex-1", !wide && "min-h-[21rem]")}
           opponents={order.length}
           wide={wide}
-          card={TRICK_CARD[trickSize]}
+          cards={trickSizes.map((s) => trickBox(s, wide))}
+          grow={!wide}
           open
           // Held for the whole match (unless you're out), so the felt doesn't relayout when your hand empties.
           near={meOut ? 0 : FAN_RISE}
           nearSpan={meOut ? undefined : handSpan}
           cardsOut={cardsOut}
-          legend={{ left: legendRound, right: legendSum }}
+          legend={wide ? { left: legendRound, right: legendSum } : undefined}
         >
-          {(l) => (
-            <>
-              <Vira view={view} at={l.vira} flat={l.viraFlat} />
-              {!l.arcs && (
-                // No stretch of the ring is free for it: the legend printed straight, where no seat or card covers it.
-                <p
-                  className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-[9.5px] leading-snug font-bold tracking-[0.06em] whitespace-nowrap text-felt-print uppercase"
-                  style={{ left: l.legend.x, top: l.legend.y }}
-                  aria-hidden
-                >
-                  <span>{legendRound}</span>
-                  <span>{legendSum}</span>
-                </p>
-              )}
-              <TrickArea view={view} seat={seatOf(l)} land={landOf(l)} cardSize={trickSize} />
-              {order.map((p, k) => {
-                const shown = view.others?.[`${p}`]?.[0] ?? undefined
-                if (!shown || (view.trick ?? []).some((t) => t.player === p)) return null
-                // A blind round: each opponent's card lies face up where they will play it; only yours is hidden.
-                return (
-                  <PlayingCard
-                    key={`shown-${p}`}
-                    card={shown}
-                    manilhas={view.manilhas}
-                    size={trickSize === "lg" ? "md" : trickSize}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 rotate-2"
-                    style={{ left: l.land[k].x, top: l.land[k].y }}
-                  />
-                )
-              })}
-              <ul role="group" aria-label="Adversários">
-                {order.map((p, k) => (
-                  <li
-                    key={p}
-                    className="absolute -translate-x-1/2 -translate-y-1/2"
-                    style={{ left: l.seats[k].x, top: l.seats[k].y, width: l.plaque.w, height: l.plaque.h }}
+          {(l, fit) => {
+            const trickSize = trickSizes[fit]
+            return (
+              <>
+                <Vira view={view} at={l.vira} flat={l.viraFlat} />
+                {wide && !l.arcs && (
+                  // No stretch of the ring is free for it: the legend printed straight, where no seat or card covers it.
+                  <p
+                    className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-[9.5px] leading-snug font-bold tracking-[0.06em] whitespace-nowrap text-felt-print uppercase"
+                    style={{ left: l.legend.x, top: l.legend.y }}
+                    aria-hidden
                   >
-                    <Seat
-                      player={players[p]}
-                      total={total}
-                      active={view.turn === p && live}
-                      phase={view.phase}
-                      dealer={view.dealer === p}
-                      level={game.levels?.[p] ? LEVEL_LABEL[game.levels[p]] : undefined}
-                      narrow={l.plaque.w < 90}
+                    <span>{legendRound}</span>
+                    <span>{legendSum}</span>
+                  </p>
+                )}
+                <TrickArea view={view} seat={seatOf(l)} land={landOf(l)} cardSize={trickSize} compact={!wide} tags={l.gallery} />
+                {order.map((p, k) => {
+                  const shown = view.others?.[`${p}`]?.[0] ?? undefined
+                  if (!shown || (view.trick ?? []).some((t) => t.player === p)) return null
+                  // A blind round: each opponent's card lies face up where they will play it; only yours is hidden.
+                  return (
+                    <PlayingCard
+                      key={`shown-${p}`}
+                      card={shown}
+                      manilhas={view.manilhas}
+                      size={trickSize === "lg" ? "md" : trickSize}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 rotate-2"
+                      style={{ left: l.land[k].x, top: l.land[k].y }}
                     />
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+                  )
+                })}
+                <ul role="group" aria-label="Adversários">
+                  {order.map((p, k) => (
+                    <li
+                      key={p}
+                      className="absolute -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: l.seats[k].x, top: l.seats[k].y, width: l.plaque.w, height: l.plaque.h }}
+                    >
+                      <Seat
+                        player={players[p]}
+                        total={total}
+                        active={view.turn === p && live}
+                        phase={view.phase}
+                        dealer={view.dealer === p}
+                        level={game.levels?.[p] ? LEVEL_LABEL[game.levels[p]] : undefined}
+                        narrow={l.plaque.w < 90}
+                        mini={l.gallery}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )
+          }}
         </Felt>
       </div>
 

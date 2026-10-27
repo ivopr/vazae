@@ -15,7 +15,7 @@ export function Vira({ view, at, flat }: { view: PlayerView; at: Pt; flat?: bool
     <div
       className={cn(
         "absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-sm border border-[color-mix(in_oklch,var(--felt-print),transparent_45%)] bg-felt-deep/85 text-center",
-        flat ? "w-27 flex-row gap-1.5 p-1.5 text-left" : "w-17 flex-col px-1 pt-1 pb-1.5",
+        flat ? "w-28 flex-row gap-1.5 p-1.5 text-left" : "w-17 flex-col px-1 pt-1 pb-1.5",
       )}
       style={{ left: at.x, top: at.y }}
     >
@@ -58,6 +58,16 @@ type Props = {
   /** Where a player sits, so their card slides in from there. */
   seat: (player: number) => Pt
   cardSize?: "sm" | "md" | "lg"
+  /**
+   * A phone's felt has no room for a name under each card: the card lies in front of
+   * its owner's plaque, and only who took the trick (or a cancelled card) is marked on it.
+   */
+  compact?: boolean
+  /**
+   * With compact: a gallery's trick lies in a grid, not in front of each plaque, so a
+   * short name goes under each card and the mark moves to its top edge.
+   */
+  tags?: boolean
 }
 
 /** Height of the name label under each trick card; the card sits half of it above its point. */
@@ -66,7 +76,7 @@ export const LABEL = 30
 // A card dropped on the felt never lies quite square.
 const tilt = (p: number) => ((p * 37) % 9) - 4
 
-export function TrickArea({ view, land, seat, cardSize = "md" }: Props) {
+export function TrickArea({ view, land, seat, cardSize = "md", compact, tags }: Props) {
   const players = view.players ?? []
   const trick = view.trick ?? []
   const last = view.lastTrick ?? []
@@ -94,7 +104,7 @@ export function TrickArea({ view, land, seat, cardSize = "md" }: Props) {
           }
           const style = {
             left: at.x + lean.x,
-            top: at.y + lean.y - LABEL / 2,
+            top: at.y + lean.y - (compact ? 0 : LABEL / 2),
             "--from-x": `calc(-50% + ${from.x - at.x}px)`,
             "--from-y": `calc(-50% + ${from.y - at.y}px)`,
             "--from-r": `${tilt(p.player) * 4}deg`,
@@ -107,17 +117,39 @@ export function TrickArea({ view, land, seat, cardSize = "md" }: Props) {
               className="absolute flex flex-col items-center gap-0.5 transition-[left,top] duration-300 ease-out motion-safe:animate-[card-in_340ms_cubic-bezier(.2,.8,.2,1)_backwards]"
               style={style}
             >
+              {compact && !tags && <span className="sr-only">{nameOf(p.player)}:</span>}
               <PlayingCard
                 card={p.card}
                 manilhas={view.manilhas}
                 size={cardSize}
                 className={cn(won && "ring-3 ring-brass", dead && "brightness-[.7] saturate-50")}
               />
-              <span className="absolute top-full mt-0.5 flex max-w-20 flex-col items-center rounded-sm bg-felt-deep/85 px-1 text-[11px] leading-tight text-felt-foreground">
-                <span className="max-w-full truncate">{nameOf(p.player)}</span>
-                {won && <b className="text-brass">levou</b>}
-                {dead && <b className="text-felt-muted">anulada</b>}
-              </span>
+              {compact ? (
+                <>
+                  {tags && (
+                    <span className="absolute top-full mt-0.5 max-w-15 truncate rounded-sm bg-felt-deep/85 px-1 text-[10px] leading-tight text-felt-foreground">
+                      {nameOf(p.player)}
+                    </span>
+                  )}
+                  {(won || dead) && (
+                    <b
+                      className={cn(
+                        "absolute rounded-sm px-1 text-[11px] leading-tight",
+                        tags ? "-top-2" : "-bottom-2",
+                        won ? "bg-brass text-ink" : "bg-felt-deep text-felt-muted",
+                      )}
+                    >
+                      {won ? "levou" : "anulada"}
+                    </b>
+                  )}
+                </>
+              ) : (
+                <span className="absolute top-full mt-0.5 flex max-w-20 flex-col items-center rounded-sm bg-felt-deep/85 px-1 text-[11px] leading-tight text-felt-foreground">
+                  <span className="max-w-full truncate">{nameOf(p.player)}</span>
+                  {won && <b className="text-brass">levou</b>}
+                  {dead && <b className="text-felt-muted">anulada</b>}
+                </span>
+              )}
             </li>
           )
         })}

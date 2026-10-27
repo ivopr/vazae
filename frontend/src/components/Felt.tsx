@@ -8,8 +8,13 @@ type Props = {
   opponents: number
   /** A desktop table: bigger plaques around a landscape oval. */
   wide?: boolean
-  /** The trick's card size, so cards land clear of the VIRA box and the plaques. */
-  card?: { w: number; h: number }
+  /**
+   * The trick's card sizes to try, largest first, so cards land clear of the VIRA box
+   * and the plaques. The first that fits is used; its index goes to `children`.
+   */
+  cards?: { w: number; h: number }[]
+  /** The felt may grow taller than its room (the page scrolls) when even the smallest cards don't fit. */
+  grow?: boolean
   /** The oval runs on below, behind the dock, which becomes its near rail. */
   open?: boolean
   /** How much of the felt's bottom your fanned hand covers. */
@@ -20,7 +25,7 @@ type Props = {
   cardsOut?: boolean
   /** Printed along the legend ring: across the far side, the near side, or either near quarter. */
   legend?: { top?: string; bottom?: string; left?: string; right?: string }
-  children: (l: Layout) => ReactNode
+  children: (l: Layout, fit: number) => ReactNode
   className?: string
 }
 
@@ -35,7 +40,7 @@ function arc(l: Layout, from: number, to: number) {
  * under one lamp, and the house legend printed in old gold, the way a casino table
  * prints its rules. Everything on it is placed from the measured layout.
  */
-export function Felt({ opponents, wide, card, open, near, nearSpan, cardsOut, legend = {}, children, className }: Props) {
+export function Felt({ opponents, wide, cards = [], grow, open, near, nearSpan, cardsOut, legend = {}, children, className }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState<{ w: number; h: number } | null>(null)
   const id = useId().replace(/:/g, "")
@@ -52,10 +57,34 @@ export function Felt({ opponents, wide, card, open, near, nearSpan, cardsOut, le
   const box = ref.current?.getBoundingClientRect()
   const k = box && ref.current?.offsetWidth ? box.width / ref.current.offsetWidth : 1
   const span: [number, number] | undefined = nearSpan && box && [(nearSpan[0] - box.left) / k, (nearSpan[1] - box.left) / k]
-  const l = size && size.w > 0 && size.h > 0 ? layout(size.w, size.h, opponents, { wide, card, open, near, nearSpan: span, cardsOut }) : null
+  const printed = Object.values(legend).some(Boolean)
+  const at = (w: number, h: number, card?: { w: number; h: number }) =>
+    layout(w, h, opponents, { wide, card, open, near, nearSpan: span, cardsOut, printed })
+  let l: Layout | null = null
+  let fit = 0
+  if (size && size.w > 0 && size.h > 0) {
+    // The smallest size is used even when it is crowded too.
+    for (fit = 0; ; fit++) {
+      l = at(size.w, size.h, cards[fit])
+      if (!l.crowded || fit >= cards.length - 1) break
+    }
+  }
+
+  // A felt that may grow (a phone's, which scrolls) stretches down until even the
+  // smallest cards land clear, each by its own seat. Worked out once per width and
+  // table size (no height, when none up to a few screens is enough).
+  const [tall, setTall] = useState<{ w: number; m: number; h?: number } | null>(null)
+  const known = !!tall && !!size && tall.w === size.w && tall.m === opponents
+  useLayoutEffect(() => {
+    if (!grow || !size || !l?.crowded || known) return
+    let h = Math.ceil(size.h / 20) * 20 + 20
+    while (h <= size.h + 600 && at(size.w, h, cards[cards.length - 1]).crowded) h += 20
+    setTall({ w: size.w, m: opponents, h: h <= size.h + 600 ? h : undefined })
+  })
+  const minH = known ? tall?.h : undefined
 
   return (
-    <div ref={ref} className={cn("relative", className)}>
+    <div ref={ref} className={cn("relative", className)} style={{ minHeight: minH }}>
       {l && (
         <>
           <svg className="pointer-events-none absolute inset-0 size-full overflow-visible" aria-hidden>
@@ -120,7 +149,7 @@ export function Felt({ opponents, wide, card, open, near, nearSpan, cardsOut, le
                 ),
             )}
           </svg>
-          {children(l)}
+          {children(l, fit)}
         </>
       )}
     </div>

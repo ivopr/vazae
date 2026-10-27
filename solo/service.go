@@ -70,7 +70,7 @@ type StartConfig struct {
 }
 
 // MaxBots is how many bots fit around the table on screen.
-const MaxBots = 7
+const MaxBots = 9
 
 type Service struct {
 	mu     sync.Mutex

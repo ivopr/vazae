@@ -8,13 +8,13 @@ import { SuitIcon } from "./SuitIcon"
 type Size = "sm" | "md" | "lg"
 
 const SIZE: Record<Size, string> = {
-  sm: "w-11 h-16 text-[15px]",
+  sm: "w-12 h-[4.25rem] text-[19px]",
   md: "w-16 h-24 text-xl",
   lg: "w-[4.75rem] h-[7rem] text-[1.375rem] stage-lg:w-20 stage-lg:h-[7.5rem]",
 }
 
 const PIP: Record<Size, string> = {
-  sm: "text-xl",
+  sm: "text-[1.75rem]",
   md: "text-4xl",
   lg: "text-5xl",
 }
@@ -90,27 +90,25 @@ export function PlayingCard({ card, back, unknown, manilhas, size = "md", classN
           {index}
         </span>
       )}
-      {size !== "sm" && (
-        // A manilha's stamp sits under the pip, between the two corner indices.
-        // On the mid size there is no room for both between the indices, so the stamp takes the pip's place.
-        <span
-          className={cn("absolute inset-0 flex flex-col items-center justify-center gap-1", PIP[size], isManilha && size === "lg" && "pb-5")}
-          aria-hidden
-        >
-          {!(isManilha && size === "md") && <SuitIcon suit={card.suit} className={cn(isManilha && "size-[0.7em]")} />}
-          {isManilha && (
-            <span className="rounded-sm bg-ink px-1 font-sans text-[9px] leading-tight font-bold text-paper">manilha</span>
-          )}
-        </span>
-      )}
-      {size === "sm" && isManilha && (
-        <span
-          className="absolute inset-x-0.5 bottom-0.5 rounded-sm bg-ink text-center font-sans text-[9px] leading-tight font-bold text-paper"
-          aria-hidden
-        >
-          manilha
-        </span>
-      )}
+      {/* A manilha's stamp sits under the pip, between the two corner indices. On the smaller
+          sizes there is no room for both, so the stamp takes the pip's place. The small card
+          has one index, so its pip sits low, clear of it. */}
+      <span
+        className={cn(
+          "absolute inset-0 flex flex-col items-center justify-center gap-1",
+          PIP[size],
+          isManilha && size === "lg" && "pb-5",
+          size === "sm" && "top-5",
+        )}
+        aria-hidden
+      >
+        {!(isManilha && size !== "lg") && <SuitIcon suit={card.suit} className={cn(isManilha && "size-[0.7em]")} />}
+        {isManilha && (
+          <span className={cn("rounded-sm bg-ink font-sans text-[9px] leading-tight font-bold text-paper", size === "sm" ? "px-0.5" : "px-1")}>
+            manilha
+          </span>
+        )}
+      </span>
     </div>
   )
 }
